@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tape Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #121212;
+    --surface:      #1c1c1f;
+    --surface-2:    #27272a;
+    --surface-3:    #32323a;
+    --surface-hover:#3a3a42;
+    --text:         #f4f4f5;
+    --text-muted:   #8a8a93;
+    --text-dim:     #5c5c65;
+    --accent:       #00E676;
+    --accent-soft:  rgba(0, 230, 118, 0.12);
+    --operator:     #ffb454;
+    --danger:       #ff5e7e;
+    --divider:      rgba(255,255,255,0.05);
+    --shadow: 0 20px 60px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'tnum';
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(0,230,118,0.06), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(0,140,255,0.05), transparent 60%),
+      var(--bg);
+  }
+
+  .app {
+    width: 100%;
+    max-width: 980px;
+    height: min(640px, calc(100vh - 48px));
+    background: var(--surface-2);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+
+  /* -------------------- TAPE -------------------- */
+  .tape {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    min-width: 0;
+  }
+
+  .tape-header {
+    padding: 22px 28px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--divider);
+  }
+
+  .tape-title {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .tape-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    opacity: 0.85;
+  }
+
+  .tape-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 28px 24px;
+    scroll-behavior: smooth;
+  }
+
+  .tape-body::-webkit-scrollbar { width: 6px; }
+  .tape-body::-webkit-scrollbar-track { background: transparent; }
+  .tape-body::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+  }
+  .tape-body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+
+  .tape-empty {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 14px;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  .tape-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--divider);
+    animation: slideIn 0.28s ease-out;
+  }
+  .tape-row:last-child { border-bottom: none; }
+
+  .tape-expression {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tape-result {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.01em;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* -------------------- CALCULATOR -------------------- */
+  .calc {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-2);
+    padding: 24px;
+  }
+
+  .display {
+    background: transparent;
+    text-align: right;
+    margin-bottom: 18px;
+    min-height: 96px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+
+  .display-pending {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    min-height: 18px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
+  }
+
+  .display-current {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 48px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .display-current.error { color: var(--danger); }
+
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    flex: 1;
+  }
+
+  button.key {
+    border: none;
+    outline: none;
+    cursor: pointer;
+    background: var(--surface-3);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 20px;
+    font-weight: 500;
+    border-radius: 12px;
+    padding: 0;
+    min-height: 56px;
+    transition: background 0.12s ease, transform 0.06s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button.key:hover { background: var(--surface-hover); }
+  button.key:active { transform: scale(0.97); background: var(--surface-hover); }
+
+  button.key.op {
+    color: var(--operator);
+    font-weight: 600;
+  }
+  button.key.op.active {
+    background: var(--operator);
+    color: #1a1a1a;
+  }
+
+  button.key.eq {
+    background: var(--accent);
+    color: #0a1a10;
+    font-weight: 700;
+  }
+  button.key.eq:hover { background: #1aeb84; }
+
+  button.key.util {
+    color: var(--text-muted);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  button.key.util.ac { color: var(--danger); }
+
+  button.key.zero { grid-column: span 2; }
+
+  /* -------------------- RESPONSIVE -------------------- */
+  @media (max-width: 720px) {
+    body { padding: 0; align-items: stretch; }
+    .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr auto;
+      height: 100vh;
+      max-width: none;
+      border-radius: 0;
+    }
+    .tape-header { padding: 18px 20px 12px; }
+    .tape-body { padding: 12px 20px 18px; }
+    .calc { padding: 18px; }
+    .display { min-height: 80px; margin-bottom: 12px; }
+    .display-current { font-size: 40px; }
+    button.key { min-height: 52px; font-size: 19px; }
+  }
+
+  @media (max-height: 560px) and (min-width: 721px) {
+    .app { height: calc(100vh - 24px); }
+  }
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Tape Calculator">
+    <section class="tape" aria-label="Calculation history">
+      <header class="tape-header">
+        <span class="tape-title">Tape</span>
+        <span class="tape-dot" aria-hidden="true"></span>
+      </header>
+      <div class="tape-body" id="tape">
+        <div class="tape-empty" id="tapeEmpty">No calculations yet. Start typing.</div>
+      </div>
+    </section>
+
+    <section class="calc" aria-label="Calculator">
+      <div class="display" aria-live="polite">
+        <div class="display-pending" id="pending"></div>
+        <div class="display-current" id="current">0</div>
+      </div>
+
+      <div class="keypad">
+        <button class="key util ac" data-action="all-clear">AC</button>
+        <button class="key util"    data-action="clear">C</button>
+        <button class="key util"    data-action="backspace">⌫</button>
+        <button class="key op"      data-op="/">÷</button>
+
+        <button class="key" data-digit="7">7</button>
+        <button class="key" data-digit="8">8</button>
+        <button class="key" data-digit="9">9</button>
+        <button class="key op" data-op="*">×</button>
+
+        <button class="key" data-digit="4">4</button>
+        <button class="key" data-digit="5">5</button>
+        <button class="key" data-digit="6">6</button>
+        <button class="key op" data-op="-">−</button>
+
+        <button class="key" data-digit="1">1</button>
+        <button class="key" data-digit="2">2</button>
+        <button class="key" data-digit="3">3</button>
+        <button class="key op" data-op="+">+</button>
+
+        <button class="key zero" data-digit="0">0</button>
+        <button class="key" data-action="decimal">.</button>
+        <button class="key eq" data-action="equals">=</button>
+      </div>
+    </section>
+  </div>
+
+<script>
+(() => {
+  // ---------- State ----------
+  const state = {
+    current: '0',
+    stored: null,
+    op: null,
+    waitingForOperand: false,
+    error: false,
+  };
+
+  // ---------- DOM ----------
+  const $current = document.getElementById('current');
+  const $pending = document.getElementById('pending');
+  const $tape    = document.getElementById('tape');
+  const $empty   = document.getElementById('tapeEmpty');
+
+  // ---------- Helpers ----------
+  const OP_SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+
+  // Format a number for display: trim trailing zeros, use locale grouping
+  const formatNumber = (n) => {
+    if (!isFinite(n)) return 'Error';
+    // Limit precision to avoid float artifacts
+    const rounded = Math.round((n + Number.EPSILON) * 1e10) / 1e10;
+    const [intPart, decPart] = String(rounded).split('.');
+    const grouped = Number(intPart).toLocaleString('en-US');
+    return decPart !== undefined ? `${grouped}.${decPart}` : grouped;
+  };
+
+  // The raw display string contains digits + optional dot. Render with grouping.
+  const renderDisplay = () => {
+    if (state.error) {
+      $current.textContent = 'Error';
+      $current.classList.add('error');
+    } else {
+      $current.classList.remove('error');
+      const raw = state.current;
+      // Preserve trailing dot while user is typing decimals
+      if (raw.endsWith('.')) {
+        const [i] = raw.split('.');
+        $current.textContent = Number(i).toLocaleString('en-US') + '.';
+      } else if (raw.includes('.')) {
+        const [i, d] = raw.split('.');
+        $current.textContent = Number(i).toLocaleString('en-US') + '.' + d;
+      } else {
+        $current.textContent = Number(raw).toLocaleString('en-US');
+      }
+    }
+
+    // Pending expression: e.g. "150 +"
+    if (state.stored !== null && state.op) {
+      $pending.textContent = `${formatNumber(state.stored)} ${OP_SYMBOL[state.op]}`;
+    } else {
+      $pending.textContent = '';
+    }
+
+    // Highlight active operator key
+    document.querySelectorAll('.key.op').forEach(btn => {
+      btn.classList.toggle('active',
+        state.waitingForOperand && btn.dataset.op === state.op);
+    });
+  };
+
+  const calculate = (a, b, op) => {
+    switch (op) {
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return b === 0 ? Infinity : a / b;
+    }
+  };
+
+  const addTapeEntry = (expression, result) => {
+    if ($empty) { $empty.remove(); }
+    const row = document.createElement('div');
+    row.className = 'tape-row';
+
+    const exp = document.createElement('span');
+    exp.className = 'tape-expression';
+    exp.textContent = expression;
+
+    const res = document.createElement('span');
+    res.className = 'tape-result';
+    res.textContent = formatNumber(result);
+
+    row.appendChild(exp);
+    row.appendChild(res);
+    $tape.appendChild(row);
+
+    // Auto-scroll to latest entry
+    requestAnimationFrame(() => {
+      $tape.scrollTop = $tape.scrollHeight;
+    });
+  };
+
+  // ---------- Actions ----------
+  const inputDigit = (d) => {
+    if (state.error) resetAll(false);
+    if (state.waitingForOperand) {
+      state.current = d;
+      state.waitingForOperand = false;
+    } else {
+      state.current = state.current === '0' ? d : state.current + d;
+    }
+    // Cap the input length for sanity
+    if (state.current.replace('.', '').length > 15) {
+      state.current = state.current.slice(0, state.current.length - 1);
+    }
+    renderDisplay();
+  };
+
+  const inputDecimal = () => {
+    if (state.error) resetAll(false);
+    if (state.waitingForOperand) {
+      state.current = '0.';
+      state.waitingForOperand = false;
+    } else if (!state.current.includes('.')) {
+      state.current += '.';
+    }
+    renderDisplay();
+  };
+
+  const backspace = () => {
+    if (state.error) { resetAll(false); renderDisplay(); return; }
+    if (state.waitingForOperand) return;
+    if (state.current.length <= 1 || (state.current.length === 2 && state.current.startsWith('-'))) {
+      state.current = '0';
+    } else {
+      state.current = state.current.slice(0, -1);
+    }
+    renderDisplay();
+  };
+
+  const clearEntry = () => {
+    state.current = '0';
+    state.error = false;
+    state.waitingForOperand = false;
+    renderDisplay();
+  };
+
+  const resetAll = (clearTape = true) => {
+    state.current = '0';
+    state.stored = null;
+    state.op = null;
+    state.waitingForOperand = false;
+    state.error = false;
+    if (clearTape) {
+      $tape.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.className = 'tape-empty';
+      empty.id = 'tapeEmpty';
+      empty.textContent = 'No calculations yet. Start typing.';
+      $tape.appendChild(empty);
+    }
+    renderDisplay();
+  };
+
+  const handleOperator = (nextOp) => {
+    if (state.error) return;
+    const inputValue = parseFloat(state.current);
+
+    // Pressing an operator right after another just swaps the pending op
+    if (state.waitingForOperand && state.stored !== null) {
+      state.op = nextOp;
+      renderDisplay();
+      return;
+    }
+
+    if (state.stored === null) {
+      state.stored = inputValue;
+    } else if (state.op) {
+      const result = calculate(state.stored, inputValue, state.op);
+      if (!isFinite(result)) {
+        state.error = true;
+        renderDisplay();
+        return;
+      }
+      addTapeEntry(
+        `${formatNumber(state.stored)} ${OP_SYMBOL[state.op]} ${formatNumber(inputValue)}`,
+        result
+      );
+      state.current = String(result);
+      state.stored = result;
+    }
+
+    state.waitingForOperand = true;
+    state.op = nextOp;
+    renderDisplay();
+  };
+
+  const handleEquals = () => {
+    if (state.error) return;
+    if (state.stored === null || state.op === null) return;
+
+    const inputValue = parseFloat(state.current);
+    const result = calculate(state.stored, inputValue, state.op);
+
+    if (!isFinite(result)) {
+      state.error = true;
+      renderDisplay();
+      return;
+    }
+
+    addTapeEntry(
+      `${formatNumber(state.stored)} ${OP_SYMBOL[state.op]} ${formatNumber(inputValue)} =`,
+      result
+    );
+
+    state.current = String(result);
+    state.stored = null;
+    state.op = null;
+    state.waitingForOperand = true;
+    renderDisplay();
+  };
+
+  // ---------- Event wiring: clicks ----------
+  document.querySelectorAll('.key').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const { digit, op, action } = btn.dataset;
+      if (digit !== undefined) inputDigit(digit);
+      else if (op !== undefined) handleOperator(op);
+      else if (action === 'decimal') inputDecimal();
+      else if (action === 'equals') handleEquals();
+      else if (action === 'backspace') backspace();
+      else if (action === 'clear') clearEntry();
+      else if (action === 'all-clear') resetAll(true);
+    });
+  });
+
+  // ---------- Event wiring: keyboard ----------
+  window.addEventListener('keydown', (e) => {
+    const k = e.key;
+
+    if (/^[0-9]$/.test(k)) { inputDigit(k); e.preventDefault(); return; }
+    if (k === '.' || k === ',') { inputDecimal(); e.preventDefault(); return; }
+    if (k === '+' || k === '-' || k === '*' || k === '/') {
+      handleOperator(k); e.preventDefault(); return;
+    }
+    if (k === 'Enter' || k === '=') { handleEquals(); e.preventDefault(); return; }
+    if (k === 'Backspace') { backspace(); e.preventDefault(); return; }
+    if (k === 'Escape') {
+      // Escape: C if there's something to clear, otherwise AC
+      if (state.current !== '0' || state.error) clearEntry();
+      else resetAll(true);
+      e.preventDefault();
+      return;
+    }
+    if (k === 'Delete') { resetAll(true); e.preventDefault(); return; }
+  });
+
+  // Initial paint
+  renderDisplay();
+})();
+</script>
+</body>
+</html>
