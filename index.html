@@ -306,7 +306,32 @@
     flex-direction: column;
     background: var(--surface-2);
     padding: 24px;
+    position: relative;
   }
+
+  /* ---- Minimize / expand toggle ---- */
+  .calc-toggle {
+    display: none; /* desktop: hidden */
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 7px;
+    background: rgba(255,255,255,0.07);
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    padding: 0;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .calc-toggle:hover  { background: rgba(255,255,255,0.13); }
+  .calc-toggle:active { background: rgba(255,255,255,0.18); }
 
   .display {
     background: transparent;
@@ -486,6 +511,13 @@
     .keypad { gap: 8px; }
     button.key { min-height: 44px; font-size: 16px; }
     button.key.util { font-size: 13px; }
+    /* toggle: top-right, portrait collapses calc downward */
+    .calc-toggle { display: flex; top: 10px; right: 12px; }
+    .calc-toggle::before { content: '⌄'; }
+    .app.calc-collapsed { grid-template-rows: 1fr 42px; }
+    .app.calc-collapsed .keypad { display: none; }
+    .app.calc-collapsed .calc { padding: 0 16px; justify-content: center; align-items: flex-end; }
+    .app.calc-collapsed .calc-toggle::before { content: '⌃'; }
   }
 
   /* -------------------- RESPONSIVE — LANDSCAPE MOBILE -------------------- */
@@ -523,6 +555,14 @@
     .keypad { flex: 1; min-height: 0; gap: 4px; align-content: stretch; }
     button.key { min-height: 0; height: auto; font-size: 13px; }
     button.key.util { font-size: 11px; }
+    /* toggle: top-left (facing tape), landscape collapses calc rightward */
+    .calc-toggle { display: flex; top: 6px; left: 6px; }
+    .calc-toggle::before { content: '›'; }
+    .app.calc-collapsed { grid-template-columns: 1fr 38px; }
+    .app.calc-collapsed .keypad { display: none; }
+    .app.calc-collapsed .calc { padding: 0; justify-content: flex-start; align-items: center; }
+    .app.calc-collapsed .calc-toggle { top: 6px; left: 6px; }
+    .app.calc-collapsed .calc-toggle::before { content: '‹'; }
   }
 
   @media (max-height: 560px) and (min-width: 721px) {
@@ -560,6 +600,7 @@
     </dialog>
 
     <section class="calc" aria-label="Calculator">
+      <button type="button" class="calc-toggle" id="calcToggle" aria-label="Toggle calculator"></button>
       <div class="keypad">
         <button class="key util ac" data-action="all-clear">AC</button>
         <button class="key util"    data-action="clear">C</button>
@@ -1159,6 +1200,11 @@
       return;
     }
     if (k === 'Delete') { resetAll(); e.preventDefault(); return; }
+  });
+
+  // ---------- Calc minimize toggle ----------
+  document.getElementById('calcToggle')?.addEventListener('click', () => {
+    document.querySelector('.app').classList.toggle('calc-collapsed');
   });
 
   // Initial paint — restore saved tape, then create the live pending row.
