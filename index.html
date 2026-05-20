@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Tape Calculator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -512,18 +512,27 @@
 
   /* -------------------- RESPONSIVE -------------------- */
   @media (max-width: 720px) {
-    body { padding: 0; align-items: stretch; }
+    body {
+      padding: 0;
+      align-items: stretch;
+      /* Push content above the iOS home indicator */
+      padding-bottom: env(safe-area-inset-bottom);
+    }
     .app {
       grid-template-columns: 1fr;
       grid-template-rows: 1fr auto;
+      /* dvh accounts for the browser address bar; vh is the fallback */
       height: 100vh;
+      height: 100dvh;
       max-width: none;
       border-radius: 0;
     }
     .tape-header { padding: 18px 20px 12px; }
     .tape-body { padding: 12px 20px 18px; }
-    .calc { padding: 18px; }
-    button.key { min-height: 52px; font-size: 19px; }
+    .calc { padding: 14px 18px 18px; }
+    .display { min-height: 72px; margin-bottom: 12px; }
+    .display-current { font-size: 40px; }
+    button.key { min-height: 48px; font-size: 19px; }
   }
 
   @media (max-height: 560px) and (min-width: 721px) {
