@@ -292,37 +292,13 @@
   }
   .tape-result-num {
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 20px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--accent);
     letter-spacing: -0.01em;
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
   }
-  /* Running total: sits on the dashed divider line, on the left side,
-     with a background matching the tape so it visually "breaks" the dashes. */
-  .tape-row[data-running]::after {
-    content: attr(data-running);
-    position: absolute;
-    left: 0;
-    bottom: -8px;
-    height: 16px;
-    line-height: 16px;
-    background: var(--surface);
-    padding: 0 10px 0 0;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-dim);
-    letter-spacing: 0.02em;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    z-index: 1;
-    pointer-events: none;
-  }
-  .tape-row[data-running-neg]::after { color: var(--op-sub); }
-  .tape-row.pending::after,
-  .tape-row:last-child::after { display: none; }
 
   .tape-note {
     text-align: right;
@@ -530,8 +506,8 @@
     .tape { min-height: 0; }
     .tape-header { padding: 14px 20px 10px; }
     .tape-body   { min-height: 0; padding: 10px 20px 14px; }
-    .tape-expression { font-size: 12px; }
-    .tape-result-num { font-size: 16px; }
+    .tape-expression { font-size: 11px; }
+    .tape-result-num { font-size: 13px; }
     .calc { padding: 10px 16px 14px; }
     .keypad { gap: 8px; }
     button.key { min-height: 44px; font-size: 16px; }
@@ -754,6 +730,43 @@
     }
   };
 
+  // Render a FINALIZED row's expression:
+  //   – Hides the first operand (it's the "previous balance" — shown elsewhere as the result).
+  //   – Shows only: [op] [second-number] = for multi-token rows.
+  //   – For a standalone number row (no operator) shows the number as-is.
+  //   – The first-number span is kept in the DOM (display:none) so attachInlineEdits works.
+  const renderFinalizedExpressionInto = (el, tokens) => {
+    el.replaceChildren();
+    const hasOp = tokens.some(isOp);
+    let firstVisible = true;
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      const sp = document.createElement('span');
+      if (isOp(t)) {
+        sp.className = 'op op-' + OP_NAME[t];
+        sp.textContent = OP_SYMBOL[t];
+      } else {
+        const prev = i > 0 ? tokens[i - 1] : null;
+        sp.className = 'num' + (prev && isOp(prev) ? ' num-' + OP_NAME[prev] : '');
+        sp.textContent = formatLive(t);
+        if (i === 0 && hasOp) {
+          // Hide previous balance — keep in DOM for inline-edit indexing
+          sp.style.display = 'none';
+          el.appendChild(sp);
+          continue;
+        }
+      }
+      if (!firstVisible) el.appendChild(document.createTextNode(' '));
+      firstVisible = false;
+      el.appendChild(sp);
+    }
+    if (!firstVisible) el.appendChild(document.createTextNode(' '));
+    const eq = document.createElement('span');
+    eq.className = 'eq';
+    eq.textContent = '=';
+    el.appendChild(eq);
+  };
+
   // ---------- Note (label) factory ----------
   const makeNote = () => {
     const note = document.createElement('div');
@@ -871,7 +884,7 @@
     pendingRow.classList.remove('pending');
     pendingRow.dataset.tokens = JSON.stringify(tokens);
     pendingRow.dataset.result = String(result);
-    renderExpressionInto(pendingRow.querySelector('.tape-expression'), tokens, true);
+    renderFinalizedExpressionInto(pendingRow.querySelector('.tape-expression'), tokens);
     attachInlineEdits(pendingRow);
     const num = pendingRow.querySelector('.tape-result-num');
     num.textContent = formatNumber(result);
@@ -886,7 +899,7 @@
     pendingRow.classList.remove('pending');
     pendingRow.dataset.tokens = JSON.stringify(tokens);
     // No dataset.result — running total carries over unchanged.
-    renderExpressionInto(pendingRow.querySelector('.tape-expression'), tokens, true);
+    renderFinalizedExpressionInto(pendingRow.querySelector('.tape-expression'), tokens);
     attachInlineEdits(pendingRow);
     const num = pendingRow.querySelector('.tape-result-num');
     num.textContent = 'Error';
@@ -928,7 +941,7 @@
     $tape.querySelectorAll('.tape-row:not(.pending)').forEach(row => {
       let tokens;
       try { tokens = JSON.parse(row.dataset.tokens || '[]'); } catch (e) { tokens = []; }
-      renderExpressionInto(row.querySelector('.tape-expression'), tokens, true);
+      renderFinalizedExpressionInto(row.querySelector('.tape-expression'), tokens);
       attachInlineEdits(row);
       refreshRow(row);
     });
@@ -1005,7 +1018,7 @@
     });
     if (!changed) return;
     row.dataset.tokens = JSON.stringify(tokens);
-    renderExpressionInto(row.querySelector('.tape-expression'), tokens, true);
+    renderFinalizedExpressionInto(row.querySelector('.tape-expression'), tokens);
     attachInlineEdits(row);
     refreshRow(row);
     recomputeRunningTotals();
@@ -1096,6 +1109,8 @@
     }
 
     if (state.typing !== null && state.typing !== '-') {
+      // One operator per row: block if first_num + op already committed
+      if (state.tokens.length >= 2) return;
       state.tokens.push(state.typing);
       state.tokens.push(op);
       state.typing = null;
