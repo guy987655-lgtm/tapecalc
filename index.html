@@ -705,7 +705,9 @@
     });
     note.addEventListener('blur', () => {
       note.textContent = note.textContent.trim();
+      saveTape();
     });
+    note.addEventListener('input', () => saveTape());
     return note;
   };
 
@@ -737,6 +739,7 @@
     setTimeout(() => {
       row.remove();
       recomputeRunningTotals();
+      saveTape();
     }, 220);
   };
 
@@ -749,6 +752,64 @@
         else delete row.dataset.runningNeg;
       }
     });
+  };
+
+  // ---------- localStorage persistence ----------
+  const STORAGE_KEY = 'tapecalc-v1';
+
+  const saveTape = () => {
+    try {
+      const rows = [...$tape.querySelectorAll('.tape-row:not(.pending)')].map(row => ({
+        tokens: (() => { try { return JSON.parse(row.dataset.tokens || '[]'); } catch(e) { return []; } })(),
+        result: parseFloat(row.dataset.result),
+        note: row.querySelector('.tape-note')?.textContent?.trim() || ''
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        rows,
+        lastResult: state.lastResult,
+        integerMode: !!state.integerMode
+      }));
+    } catch(e) {}
+  };
+
+  const createFinalizedRow = (tokens, result, note) => {
+    const empty = document.getElementById('tapeEmpty');
+    if (empty) empty.remove();
+    const row = document.createElement('div');
+    row.className = 'tape-row';
+    row.dataset.tokens = JSON.stringify(tokens);
+    row.dataset.result = String(result);
+    const operand = document.createElement('span');
+    operand.className = 'tape-operand';
+    if (tokens.length >= 3) {
+      setOperand(operand, tokens[1], formatLive(tokens[2]));
+    } else {
+      setOperand(operand, null, formatLive(tokens[0]), result < 0 ? 'negative' : '');
+    }
+    const noteEl = makeNote();
+    if (note) noteEl.textContent = note;
+    const del = makeDeleteButton(row);
+    row.appendChild(operand);
+    row.appendChild(noteEl);
+    row.appendChild(del);
+    $tape.appendChild(row);
+  };
+
+  const loadTape = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const { rows, lastResult, integerMode } = JSON.parse(raw);
+      if (Array.isArray(rows) && rows.length > 0) {
+        rows.forEach(({ tokens, result, note }) => {
+          if (!Array.isArray(tokens) || !isFinite(result)) return;
+          createFinalizedRow(tokens, result, note || '');
+        });
+        recomputeRunningTotals();
+      }
+      if (integerMode) setIntegerMode(true);
+      if (lastResult != null && isFinite(lastResult)) state.lastResult = lastResult;
+    } catch(e) {}
   };
 
   // ---------- Pending row management ----------
@@ -963,6 +1024,7 @@
       state.error = false;
       createPendingRow();
       render();
+      saveTape();
       return;
     }
 
@@ -975,6 +1037,7 @@
 
     createPendingRow();
     render();
+    saveTape();
   };
 
   const backspace = () => {
@@ -1013,6 +1076,7 @@
     pendingRow = null;
     createPendingRow();
     render();
+    saveTape();
   };
 
   // ---------- Event wiring: clicks ----------
@@ -1041,6 +1105,7 @@
       state.typing = state.typing.split('.')[0] || null;
     }
     reRenderAllRows();
+    saveTape();
   };
   $decimalToggle.addEventListener('click', () => {
     setIntegerMode(!state.integerMode);
@@ -1085,7 +1150,8 @@
     if (k === 'Delete') { resetAll(); e.preventDefault(); return; }
   });
 
-  // Initial paint — create the first live pending row.
+  // Initial paint — restore saved tape, then create the live pending row.
+  loadTape();
   createPendingRow();
   render();
 })();
