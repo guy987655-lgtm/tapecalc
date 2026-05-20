@@ -60,10 +60,36 @@
     border-radius: 20px;
     box-shadow: var(--shadow);
     display: grid;
-    grid-template-columns: 1fr 380px;
+    grid-template-columns: 1fr 5px 380px;
     overflow: hidden;
     border: 1px solid rgba(255,255,255,0.04);
   }
+
+  /* -------------------- RESIZER -------------------- */
+  .resizer {
+    background: var(--surface-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    touch-action: none;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .resizer::after {
+    content: '';
+    border-radius: 999px;
+    background: rgba(255,255,255,0.15);
+    transition: background 0.15s;
+  }
+  /* desktop / landscape: vertical bar */
+  .resizer {
+    width: 5px;
+    cursor: col-resize;
+  }
+  .resizer::after { width: 3px; height: 28px; }
+  .resizer:hover, .resizer.dragging { background: rgba(255,255,255,0.07); }
+  .resizer:hover::after, .resizer.dragging::after { background: rgba(255,255,255,0.45); }
 
   /* -------------------- TAPE -------------------- */
   .tape {
@@ -486,15 +512,16 @@
     }
     .app {
       grid-template-columns: 1fr;
-      /* minmax(0,1fr) lets the tape shrink when rows grow — fixes "pushes bottom" bug */
-      grid-template-rows: minmax(0, 1fr) auto;
+      grid-template-rows: minmax(0, 1fr) 8px auto;
       height: 100vh;
       height: calc(100dvh - env(safe-area-inset-bottom));
       max-width: none;
       border-radius: 0;
     }
-    /* must be 0 so the grid can actually shrink the tape */
     .tape { min-height: 0; }
+    /* portrait: horizontal resizer */
+    .resizer { width: auto; height: 8px; cursor: row-resize; }
+    .resizer::after { width: 28px; height: 3px; }
     .tape-header { padding: 14px 20px 10px; }
     .tape-body   { min-height: 0; padding: 10px 20px 14px; }
     .calc { padding: 10px 16px 14px; }
@@ -504,6 +531,7 @@
     /* handle at top of calc, collapses panel down */
     .calc-handle { display: flex; margin: -10px -16px 4px; }
     .app.calc-collapsed { grid-template-rows: 1fr 22px; }
+    .app.calc-collapsed .resizer { display: none; }
     .app.calc-collapsed .keypad { display: none; }
     .app.calc-collapsed .calc { padding: 0 16px; }
   }
@@ -516,7 +544,7 @@
       align-items: stretch;
     }
     .app {
-      grid-template-columns: 3fr 1fr;   /* tape 75 %, calc 25 % */
+      grid-template-columns: 3fr 5px 1fr;   /* tape | resizer | calc */
       grid-template-rows: 1fr;
       height: 100vh;
       height: calc(100dvh - env(safe-area-inset-bottom));
@@ -546,6 +574,7 @@
     /* handle at top of calc column, collapses calc rightward */
     .calc-handle { display: flex; margin: -6px -8px 2px; }
     .app.calc-collapsed { grid-template-columns: 1fr 22px; }
+    .app.calc-collapsed .resizer { display: none; }
     .app.calc-collapsed .keypad { display: none; }
     .app.calc-collapsed .calc { padding: 0; }
   }
@@ -568,6 +597,8 @@
         <div class="tape-empty" id="tapeEmpty">No calculations yet. Start typing.</div>
       </div>
     </section>
+
+    <div class="resizer" id="resizer"></div>
 
     <dialog id="confirmDialog" class="modal" aria-labelledby="confirmText">
       <form method="dialog" class="modal-content">
@@ -1203,9 +1234,81 @@
     });
   });
 
+  // ---------- Resizer drag ----------
+  (() => {
+    const resizer = document.getElementById('resizer');
+    const $app   = document.querySelector('.app');
+    if (!resizer) return;
+
+    let dragging = false, startPointer = 0, startSize = 0, portrait = false;
+
+    const isPortrait  = () => window.matchMedia('(max-width: 720px) and (orientation: portrait)').matches;
+    const isLandscape = () => window.matchMedia('(max-height: 500px) and (orientation: landscape)').matches;
+
+    const onDown = (e) => {
+      if ($app.classList.contains('calc-collapsed')) return;
+      dragging = true;
+      portrait = isPortrait();
+      resizer.classList.add('dragging');
+
+      if (portrait) {
+        startPointer = e.touches ? e.touches[0].clientY : e.clientY;
+        startSize = document.querySelector('.calc').getBoundingClientRect().height;
+        $app.style.gridTemplateRows = `1fr 8px ${startSize}px`;
+      } else {
+        startPointer = e.touches ? e.touches[0].clientX : e.clientX;
+        startSize = document.querySelector('.tape').getBoundingClientRect().width;
+        $app.style.gridTemplateColumns = `${startSize}px 5px 1fr`;
+      }
+      e.preventDefault();
+    };
+
+    const onMove = (e) => {
+      if (!dragging) return;
+      const appRect = $app.getBoundingClientRect();
+
+      if (portrait) {
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const newCalc = startSize - (cy - startPointer); // drag up → bigger calc
+        const clamped = Math.max(160, Math.min(newCalc, appRect.height * 0.78));
+        $app.style.gridTemplateRows = `1fr 8px ${clamped}px`;
+      } else {
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const newTape = startSize + (cx - startPointer);
+        const minCalc = isLandscape() ? 120 : 220;
+        const clamped = Math.max(80, Math.min(newTape, appRect.width - minCalc - 5));
+        $app.style.gridTemplateColumns = `${clamped}px 5px 1fr`;
+      }
+      e.preventDefault();
+    };
+
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      resizer.classList.remove('dragging');
+    };
+
+    // Reset on orientation change so CSS takes over cleanly
+    window.addEventListener('resize', () => {
+      $app.style.gridTemplateColumns = '';
+      $app.style.gridTemplateRows = '';
+    });
+
+    resizer.addEventListener('mousedown',  onDown);
+    resizer.addEventListener('touchstart', onDown, { passive: false });
+    window.addEventListener('mousemove',   onMove);
+    window.addEventListener('touchmove',   onMove, { passive: false });
+    window.addEventListener('mouseup',     onUp);
+    window.addEventListener('touchend',    onUp);
+  })();
+
   // ---------- Calc handle toggle ----------
   document.getElementById('calcHandle')?.addEventListener('click', () => {
-    document.querySelector('.app').classList.toggle('calc-collapsed');
+    const $app = document.querySelector('.app');
+    // Clear any inline resize so CSS collapsed rules apply cleanly
+    $app.style.gridTemplateColumns = '';
+    $app.style.gridTemplateRows = '';
+    $app.classList.toggle('calc-collapsed');
   });
 
   // Initial paint — restore saved tape, then create the live pending row.
