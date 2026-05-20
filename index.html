@@ -162,10 +162,10 @@
     position: relative;
     display: flex;
     flex-direction: row;
-    align-items: stretch;
-    gap: 10px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--divider);
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--divider);
     animation: slideIn 0.28s ease-out;
     transition: opacity 0.18s ease, max-height 0.22s ease, padding 0.18s ease;
   }
@@ -176,66 +176,57 @@
     padding-top: 0; padding-bottom: 0; overflow: hidden;
   }
 
+  /* ערך השורה — the operand number, big on the left */
   .tape-operand {
     flex: 0 0 auto;
-    width: 72px;
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 20px;
     font-weight: 700;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
     color: var(--text-muted);
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
   }
   .tape-operand.op-add { color: var(--op-add); }
   .tape-operand.op-sub { color: var(--op-sub); }
   .tape-operand.op-mul { color: var(--op-mul); }
   .tape-operand.op-div { color: var(--op-div); }
+  /* operator sign — smaller, slightly dimmed */
+  .tape-sign {
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.75;
+    flex-shrink: 0;
+  }
   .tape-operand.negative { color: var(--op-sub); }
   .tape-operand.error { color: var(--danger); font-size: 13px; }
 
-  .tape-info {
-    flex: 1;
-    min-width: 0;
-    background: var(--surface-3);
-    border-radius: 8px;
-    padding: 5px 12px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 4px;
-  }
-
-  .tape-expr {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: right;
-    letter-spacing: 0.02em;
-    min-height: 14px;
-  }
-
-  .tape-total {
+  /* Running total on the left of the dashed divider line */
+  .tape-row[data-running]::after {
+    content: attr(data-running);
+    position: absolute;
+    left: 0;
+    bottom: -9px;
+    height: 17px;
+    line-height: 17px;
+    background: var(--surface);
+    padding-right: 8px;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 11px;
     font-weight: 500;
     color: var(--text-dim);
-    text-align: right;
-    border-top: 1px solid var(--divider);
-    padding-top: 3px;
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+    z-index: 1;
+    pointer-events: none;
   }
-  .tape-total.negative { color: var(--op-sub); }
-  .tape-row.pending .tape-total { display: none; }
+  .tape-row[data-running-neg]::after { color: var(--op-sub); }
+  .tape-row.pending::after,
+  .tape-row:last-child::after { display: none; }
 
   .tape-delete {
     flex: 0 0 auto;
@@ -267,13 +258,14 @@
   }
 
   .tape-note {
-    flex: 0 1 auto;
-    min-width: 18px;
+    flex: 1;
+    min-width: 0;
+    text-align: right;
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 11px;
     font-weight: 600;
-    color: var(--accent);
-    opacity: 0.85;
+    color: var(--text);
+    opacity: 0.9;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     line-height: 1.4;
@@ -406,7 +398,7 @@
   }
   button.key.util.ac { color: var(--danger); }
 
-  button.key.zero { grid-column: span 2; }
+  button.key.eq { grid-column: span 1; }
 
   button.key.disabled {
     color: var(--text-dim);
@@ -578,7 +570,8 @@
         <button class="key" data-digit="3">3</button>
         <button class="key op" data-op="+">+</button>
 
-        <button class="key zero" data-digit="0">0</button>
+        <button class="key" data-digit="0">0</button>
+        <button class="key" data-action="double-zero">00</button>
         <button class="key" data-action="decimal">.</button>
         <button class="key eq" data-action="equals">=</button>
       </div>
@@ -674,6 +667,20 @@
     return result;
   };
 
+  // Helper: write operator sign + number into a .tape-operand element
+  const setOperand = (el, op, numText, extraClass = '') => {
+    el.textContent = '';
+    const opName = op ? OP_NAME[op] : null;
+    el.className = 'tape-operand' + (opName ? ' op-' + opName : '') + (extraClass ? ' ' + extraClass : '');
+    if (op) {
+      const s = document.createElement('span');
+      s.className = 'tape-sign';
+      s.textContent = OP_SYMBOL[op];
+      el.appendChild(s);
+    }
+    el.appendChild(document.createTextNode(numText));
+  };
+
   // ---------- Note (label) factory ----------
   const makeNote = () => {
     const note = document.createElement('div');
@@ -734,14 +741,12 @@
   };
 
   const recomputeRunningTotals = () => {
-    let sum = 0;
     $tape.querySelectorAll('.tape-row:not(.pending)').forEach(row => {
       const r = parseFloat(row.dataset.result);
-      if (!isNaN(r)) sum += r;
-      const totalEl = row.querySelector('.tape-total');
-      if (totalEl) {
-        totalEl.textContent = 'Σ ' + formatNumber(sum);
-        totalEl.classList.toggle('negative', sum < 0);
+      if (!isNaN(r)) {
+        row.dataset.running = formatNumber(r);
+        if (r < 0) row.dataset.runningNeg = '1';
+        else delete row.dataset.runningNeg;
       }
     });
   };
@@ -757,23 +762,10 @@
     const operand = document.createElement('span');
     operand.className = 'tape-operand';
 
-    const info = document.createElement('div');
-    info.className = 'tape-info';
-
-    const expr = document.createElement('span');
-    expr.className = 'tape-expr';
-
-    const total = document.createElement('span');
-    total.className = 'tape-total';
-
-    info.appendChild(expr);
-    info.appendChild(total);
-
     const note = makeNote();
     const del = makeDeleteButton(row);
 
     row.appendChild(operand);
-    row.appendChild(info);
     row.appendChild(note);
     row.appendChild(del);
     $tape.appendChild(row);
@@ -788,16 +780,10 @@
     pendingRow.dataset.tokens = JSON.stringify(tokens);
     pendingRow.dataset.result = String(result);
     const operand = pendingRow.querySelector('.tape-operand');
-    const expr = pendingRow.querySelector('.tape-expr');
     if (tokens.length >= 3) {
-      const op = tokens[1]; const num = tokens[2];
-      operand.textContent = formatLive(num);
-      operand.className = 'tape-operand op-' + OP_NAME[op];
-      expr.textContent = formatLive(tokens[0]) + ' ' + OP_SYMBOL[op] + ' ' + formatLive(num) + ' = ' + formatNumber(result);
+      setOperand(operand, tokens[1], formatLive(tokens[2]));
     } else {
-      operand.textContent = formatLive(tokens[0]);
-      operand.className = 'tape-operand' + (result < 0 ? ' negative' : '');
-      expr.textContent = '= ' + formatNumber(result);
+      setOperand(operand, null, formatLive(tokens[0]), result < 0 ? 'negative' : '');
     }
     pendingRow = null;
     recomputeRunningTotals();
@@ -808,12 +794,8 @@
     pendingRow.classList.remove('pending');
     pendingRow.dataset.tokens = JSON.stringify(tokens);
     const operand = pendingRow.querySelector('.tape-operand');
-    const expr = pendingRow.querySelector('.tape-expr');
     operand.textContent = 'Err';
     operand.className = 'tape-operand error';
-    expr.textContent = tokens.length >= 3
-      ? formatLive(tokens[0]) + ' ' + OP_SYMBOL[tokens[1]] + ' 0 = ?'
-      : '';
     pendingRow = null;
     recomputeRunningTotals();
   };
@@ -823,27 +805,21 @@
     let tokens;
     try { tokens = JSON.parse(row.dataset.tokens || '[]'); } catch (e) { tokens = []; }
     const operand = row.querySelector('.tape-operand');
-    const expr = row.querySelector('.tape-expr');
-    if (!operand || !expr) return;
+    if (!operand) return;
     if (tokens.length === 0 || tokens.length === 2) {
-      operand.textContent = 'Err'; operand.className = 'tape-operand error';
-      expr.textContent = ''; delete row.dataset.result; return;
+      setOperand(operand, null, 'Err', 'error');
+      delete row.dataset.result; return;
     }
     const r = evaluateTokens(tokens);
     if (!isFinite(r)) {
-      operand.textContent = 'Err'; operand.className = 'tape-operand error';
-      expr.textContent = ''; delete row.dataset.result;
+      setOperand(operand, null, 'Err', 'error');
+      delete row.dataset.result;
     } else {
       row.dataset.result = String(r);
       if (tokens.length >= 3) {
-        const op = tokens[1]; const num = tokens[2];
-        operand.textContent = formatLive(num);
-        operand.className = 'tape-operand op-' + OP_NAME[op];
-        expr.textContent = formatLive(tokens[0]) + ' ' + OP_SYMBOL[op] + ' ' + formatLive(num) + ' = ' + formatNumber(r);
+        setOperand(operand, tokens[1], formatLive(tokens[2]));
       } else {
-        operand.textContent = formatLive(tokens[0]);
-        operand.className = 'tape-operand' + (r < 0 ? ' negative' : '');
-        expr.textContent = '= ' + formatNumber(r);
+        setOperand(operand, null, formatLive(tokens[0]), r < 0 ? 'negative' : '');
       }
     }
   };
@@ -860,30 +836,19 @@
   const render = () => {
     if (!pendingRow) createPendingRow();
     const operand = pendingRow.querySelector('.tape-operand');
-    const expr = pendingRow.querySelector('.tape-expr');
 
     const lastTok = state.tokens[state.tokens.length - 1];
     const pendingOp = (lastTok !== undefined && isOp(lastTok)) ? lastTok : null;
     const firstNum = state.tokens.length > 0 && !isOp(state.tokens[0]) ? state.tokens[0] : null;
 
     if (state.typing !== null) {
-      operand.textContent = formatLive(state.typing);
-      operand.className = 'tape-operand' + (pendingOp ? ' op-' + OP_NAME[pendingOp] : '');
+      setOperand(operand, pendingOp, formatLive(state.typing));
     } else if (pendingOp) {
-      operand.textContent = OP_SYMBOL[pendingOp];
-      operand.className = 'tape-operand op-' + OP_NAME[pendingOp];
+      setOperand(operand, pendingOp, '');
     } else if (firstNum) {
-      operand.textContent = formatLive(firstNum);
-      operand.className = 'tape-operand';
+      setOperand(operand, null, formatLive(firstNum));
     } else {
-      operand.textContent = '';
-      operand.className = 'tape-operand';
-    }
-
-    if (firstNum && pendingOp) {
-      expr.textContent = formatLive(firstNum) + ' ' + OP_SYMBOL[pendingOp];
-    } else {
-      expr.textContent = '';
+      setOperand(operand, null, '');
     }
 
     const activeOp = (state.typing === null && pendingOp) ? pendingOp : null;
@@ -1057,6 +1022,7 @@
       const { digit, op, action } = btn.dataset;
       if (digit !== undefined) inputDigit(digit);
       else if (op !== undefined) handleOperator(op);
+      else if (action === 'double-zero') { inputDigit('0'); inputDigit('0'); }
       else if (action === 'decimal') inputDecimal();
       else if (action === 'equals') handleEquals();
       else if (action === 'backspace') backspace();
