@@ -15,12 +15,16 @@
     --surface-3:    #32323a;
     --surface-hover:#3a3a42;
     --text:         #f4f4f5;
-    --text-muted:   #8a8a93;
-    --text-dim:     #5c5c65;
+    --text-muted:   #b8b8c0;
+    --text-dim:     #8a8a93;
     --accent:       #00E676;
     --accent-soft:  rgba(0, 230, 118, 0.12);
     --operator:     #ffb454;
     --danger:       #ff5e7e;
+    --op-add:       #00E676;
+    --op-mul:       #00A050;
+    --op-sub:       #FF5E7E;
+    --op-div:       #FFA3B1;
     --divider:      rgba(255,255,255,0.05);
     --shadow: 0 20px 60px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
   }
@@ -93,6 +97,41 @@
     opacity: 0.85;
   }
 
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .decimal-toggle {
+    background: var(--surface-2);
+    border: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    border-radius: 999px;
+    padding: 2px;
+    display: inline-flex;
+    gap: 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease;
+  }
+  .decimal-toggle:hover { background: var(--surface-3); }
+  .decimal-toggle .dt-opt {
+    padding: 4px 10px;
+    border-radius: 999px;
+    transition: background 0.15s ease, color 0.15s ease;
+    line-height: 1;
+  }
+  .decimal-toggle[data-mode="decimal"] .dt-on,
+  .decimal-toggle[data-mode="integer"] .dt-off {
+    background: var(--accent);
+    color: #0a1a10;
+    font-weight: 600;
+  }
+
   .tape-body {
     flex: 1;
     overflow-y: auto;
@@ -120,17 +159,109 @@
   }
 
   .tape-row {
+    position: relative;
     display: flex;
+    flex-direction: row-reverse;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 16px;
+    gap: 14px;
     padding: 10px 0;
     border-bottom: 1px dashed var(--divider);
     animation: slideIn 0.28s ease-out;
+    transition: opacity 0.18s ease, max-height 0.22s ease, padding 0.18s ease;
   }
   .tape-row:last-child { border-bottom: none; }
+  .tape-row.pending { border-bottom: none; animation: none; }
+  .tape-row.pending .tape-expression { color: var(--text); min-height: 20px; }
+  .tape-row.removing {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+  }
+  .tape-result-num.error {
+    color: var(--danger);
+    opacity: 1;
+  }
+  .tape-result-num.negative {
+    color: var(--op-sub);
+  }
+  .tape-running.negative {
+    color: var(--op-sub);
+    opacity: 0.7;
+  }
+
+  .tape-delete {
+    flex: 0 0 auto;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    align-self: center;
+  }
+  .tape-row:hover .tape-delete { opacity: 0.4; }
+  .tape-delete:hover { opacity: 1; color: var(--danger); background: rgba(255,94,126,0.1); }
+  .tape-delete:focus { opacity: 1; outline: none; }
+  .tape-row.pending .tape-delete { visibility: hidden; pointer-events: none; }
+  @media (hover: none) {
+    .tape-row:not(.pending) .tape-delete { opacity: 0.35; }
+  }
+
+  .tape-note {
+    flex: 0 1 auto;
+    min-width: 18px;
+    max-width: 45%;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    opacity: 0.85;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    outline: none;
+    cursor: text;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin: -2px 0 -2px -6px;
+    word-break: break-word;
+    transition: background 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+  }
+  .tape-note:empty {
+    opacity: 0;
+    color: var(--text-dim);
+  }
+  .tape-note:empty::before {
+    content: '+';
+    pointer-events: none;
+  }
+  .tape-row:hover .tape-note:empty,
+  .tape-note:focus:empty {
+    opacity: 0.45;
+  }
+  .tape-note:focus {
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    opacity: 1;
+  }
 
   .tape-expression {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 14px;
     font-weight: 400;
@@ -139,17 +270,62 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    direction: ltr;
   }
+  .tape-expression .num-add, .tape-expression .op-add { color: var(--op-add); }
+  .tape-expression .num-mul, .tape-expression .op-mul { color: var(--op-mul); }
+  .tape-expression .num-sub, .tape-expression .op-sub { color: var(--op-sub); }
+  .tape-expression .num-div, .tape-expression .op-div { color: var(--op-div); }
+  .tape-row.pending .tape-expression .num-add,
+  .tape-row.pending .tape-expression .num-mul,
+  .tape-row.pending .tape-expression .num-sub,
+  .tape-row.pending .tape-expression .num-div { font-weight: 500; }
+  .tape-expression .eq { color: var(--text-dim); }
 
   .tape-result {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .tape-result-num {
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 20px;
     font-weight: 600;
     color: var(--accent);
     letter-spacing: -0.01em;
-    text-align: right;
-    white-space: nowrap;
+    line-height: 1.1;
     font-variant-numeric: tabular-nums;
+  }
+  /* Running total: sits on the dashed divider line, on the left side,
+     with a background matching the tape so it visually "breaks" the dashes. */
+  .tape-row[data-running]::after {
+    content: attr(data-running);
+    position: absolute;
+    left: 0;
+    bottom: -8px;
+    height: 16px;
+    line-height: 16px;
+    background: var(--surface);
+    padding: 0 10px 0 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .tape-row[data-running-neg]::after { color: var(--op-sub); }
+  .tape-row.pending::after,
+  .tape-row:last-child::after { display: none; }
+
+  .tape-note {
+    text-align: right;
   }
 
   @keyframes slideIn {
@@ -257,6 +433,83 @@
 
   button.key.zero { grid-column: span 2; }
 
+  button.key.disabled {
+    color: var(--text-dim);
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  button.key.disabled:hover,
+  button.key.disabled:active {
+    background: var(--surface-3);
+    transform: none;
+  }
+
+  /* -------------------- MODAL -------------------- */
+  dialog.modal {
+    background: var(--surface-2);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    color: var(--text);
+    padding: 0;
+    max-width: 320px;
+    width: calc(100vw - 48px);
+    box-shadow: 0 30px 60px rgba(0,0,0,0.55), 0 4px 12px rgba(0,0,0,0.4);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  dialog.modal::backdrop {
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .modal-content {
+    padding: 22px 22px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .modal-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .modal-btn {
+    background: var(--surface-3);
+    color: var(--text);
+    border: none;
+    padding: 9px 16px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .modal-btn:hover { background: var(--surface-hover); }
+  .modal-btn.danger { background: var(--danger); color: #1a1a1a; }
+  .modal-btn.danger:hover { background: #ff7591; }
+
+  /* -------------------- EDITABLE NUMBERS IN FINALIZED ROWS -------------------- */
+  .tape-row:not(.pending) .tape-expression .num {
+    cursor: text;
+    padding: 0 2px;
+    border-radius: 3px;
+    transition: background 0.12s ease;
+  }
+  .tape-row:not(.pending) .tape-expression .num:hover {
+    background: rgba(255,255,255,0.05);
+  }
+  .tape-row:not(.pending) .tape-expression .num:focus {
+    background: rgba(255,255,255,0.08);
+    outline: none;
+  }
+
   /* -------------------- RESPONSIVE -------------------- */
   @media (max-width: 720px) {
     body { padding: 0; align-items: stretch; }
@@ -270,8 +523,6 @@
     .tape-header { padding: 18px 20px 12px; }
     .tape-body { padding: 12px 20px 18px; }
     .calc { padding: 18px; }
-    .display { min-height: 80px; margin-bottom: 12px; }
-    .display-current { font-size: 40px; }
     button.key { min-height: 52px; font-size: 19px; }
   }
 
@@ -285,19 +536,31 @@
     <section class="tape" aria-label="Calculation history">
       <header class="tape-header">
         <span class="tape-title">Tape</span>
-        <span class="tape-dot" aria-hidden="true"></span>
+        <div class="header-controls">
+          <button type="button" class="decimal-toggle" id="decimalToggle"
+                  data-mode="decimal" aria-label="Toggle decimals">
+            <span class="dt-opt dt-on">0.00</span>
+            <span class="dt-opt dt-off">0</span>
+          </button>
+          <span class="tape-dot" aria-hidden="true"></span>
+        </div>
       </header>
       <div class="tape-body" id="tape">
         <div class="tape-empty" id="tapeEmpty">No calculations yet. Start typing.</div>
       </div>
     </section>
 
-    <section class="calc" aria-label="Calculator">
-      <div class="display" aria-live="polite">
-        <div class="display-pending" id="pending"></div>
-        <div class="display-current" id="current">0</div>
-      </div>
+    <dialog id="confirmDialog" class="modal" aria-labelledby="confirmText">
+      <form method="dialog" class="modal-content">
+        <div class="modal-text" id="confirmText">Delete this row?</div>
+        <div class="modal-actions">
+          <button type="button" class="modal-btn" id="confirmCancel">Cancel</button>
+          <button type="submit" class="modal-btn danger" id="confirmOK" value="confirm">Delete</button>
+        </div>
+      </form>
+    </dialog>
 
+    <section class="calc" aria-label="Calculator">
       <div class="keypad">
         <button class="key util ac" data-action="all-clear">AC</button>
         <button class="key util"    data-action="clear">C</button>
@@ -329,65 +592,70 @@
 <script>
 (() => {
   // ---------- State ----------
+  // Tape calc model: an array of committed tokens (numbers + operators)
+  // plus the current number being typed. The "pending" row in the tape
+  // mirrors this state live. On '=' we evaluate, finalize that row, and
+  // spawn a fresh pending row.
   const state = {
-    current: '0',
-    stored: null,
-    op: null,
-    waitingForOperand: false,
+    tokens: [],         // committed sequence: ['150','+','20','+', ...]
+    typing: null,       // current number being typed, or null when waiting
     error: false,
+    lastResult: null,   // last evaluated result, enables chaining after '='
+    integerMode: false, // when true: no decimals allowed, results rounded
   };
 
   // ---------- DOM ----------
-  const $current = document.getElementById('current');
-  const $pending = document.getElementById('pending');
-  const $tape    = document.getElementById('tape');
-  const $empty   = document.getElementById('tapeEmpty');
+  const $tape = document.getElementById('tape');
+  const $decimalToggle = document.getElementById('decimalToggle');
+  const $confirmDialog = document.getElementById('confirmDialog');
+  const $confirmCancel = document.getElementById('confirmCancel');
+  const $decimalKey = document.querySelector('.key[data-action="decimal"]');
+  let pendingRow = null;
+  let rowAwaitingDelete = null;
 
   // ---------- Helpers ----------
   const OP_SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+  const OP_NAME   = { '+': 'add', '-': 'sub', '*': 'mul', '/': 'div' };
+  const isOp = (t) => t === '+' || t === '-' || t === '*' || t === '/';
 
-  // Format a number for display: trim trailing zeros, use locale grouping
+  // Format an in-progress typed string with thousands grouping while preserving
+  // a trailing dot or fractional part the user is still typing.
+  const formatLive = (s) => {
+    if (s == null || s === '') return '';
+    if (s === '-') return '-';
+    const neg = s.startsWith('-');
+    const body = neg ? s.slice(1) : s;
+    let out;
+    if (state.integerMode) {
+      // Display as integer: round and ignore any decimal part
+      const intPart = body.split('.')[0] || '0';
+      out = Number(intPart).toLocaleString('en-US');
+    } else if (body.endsWith('.')) {
+      const [i] = body.split('.');
+      out = Number(i || 0).toLocaleString('en-US') + '.';
+    } else if (body.includes('.')) {
+      const [i, d] = body.split('.');
+      // Hard cap on display: at most 2 fractional digits.
+      const limited = d.length > 2 ? d.slice(0, 2) : d;
+      out = Number(i || 0).toLocaleString('en-US') + '.' + limited;
+    } else {
+      out = Number(body).toLocaleString('en-US');
+    }
+    return neg ? '-' + out : out;
+  };
+
+  // Format a finalized number — used for results.
+  // In decimal mode: rounded to 2 fractional digits.
+  // In integer mode: rounded to whole.
   const formatNumber = (n) => {
     if (!isFinite(n)) return 'Error';
-    // Limit precision to avoid float artifacts
-    const rounded = Math.round((n + Number.EPSILON) * 1e10) / 1e10;
+    if (state.integerMode) {
+      return Math.round(n).toLocaleString('en-US');
+    }
+    const rounded = Math.round((n + Number.EPSILON) * 100) / 100;
     const [intPart, decPart] = String(rounded).split('.');
     const grouped = Number(intPart).toLocaleString('en-US');
     return decPart !== undefined ? `${grouped}.${decPart}` : grouped;
-  };
-
-  // The raw display string contains digits + optional dot. Render with grouping.
-  const renderDisplay = () => {
-    if (state.error) {
-      $current.textContent = 'Error';
-      $current.classList.add('error');
-    } else {
-      $current.classList.remove('error');
-      const raw = state.current;
-      // Preserve trailing dot while user is typing decimals
-      if (raw.endsWith('.')) {
-        const [i] = raw.split('.');
-        $current.textContent = Number(i).toLocaleString('en-US') + '.';
-      } else if (raw.includes('.')) {
-        const [i, d] = raw.split('.');
-        $current.textContent = Number(i).toLocaleString('en-US') + '.' + d;
-      } else {
-        $current.textContent = Number(raw).toLocaleString('en-US');
-      }
-    }
-
-    // Pending expression: e.g. "150 +"
-    if (state.stored !== null && state.op) {
-      $pending.textContent = `${formatNumber(state.stored)} ${OP_SYMBOL[state.op]}`;
-    } else {
-      $pending.textContent = '';
-    }
-
-    // Highlight active operator key
-    document.querySelectorAll('.key.op').forEach(btn => {
-      btn.classList.toggle('active',
-        state.waitingForOperand && btn.dataset.op === state.op);
-    });
   };
 
   const calculate = (a, b, op) => {
@@ -399,152 +667,493 @@
     }
   };
 
-  const addTapeEntry = (expression, result) => {
-    if ($empty) { $empty.remove(); }
+  // Left-to-right evaluation (matches classic tape-calc behavior).
+  const evaluateTokens = (tokens) => {
+    if (tokens.length === 0) return 0;
+    let result = parseFloat(tokens[0]);
+    for (let i = 1; i < tokens.length - 1; i += 2) {
+      result = calculate(result, parseFloat(tokens[i + 1]), tokens[i]);
+      if (!isFinite(result)) return result;
+    }
+    return result;
+  };
+
+  const buildExpressionText = (tokens, withEquals = false) => {
+    const parts = tokens.map(t => isOp(t) ? OP_SYMBOL[t] : formatLive(t));
+    let s = parts.join(' ');
+    if (withEquals) s += ' =';
+    return s;
+  };
+
+  // Render tokens into an element as colored spans:
+  //   – The first operand is muted (no operator precedes it).
+  //   – Every following operand+operator pair takes the operator's color.
+  //   – The trailing "=" stays dim.
+  const renderExpressionInto = (el, tokens, withEquals = false) => {
+    el.replaceChildren();
+    for (let i = 0; i < tokens.length; i++) {
+      if (i > 0) el.appendChild(document.createTextNode(' '));
+      const t = tokens[i];
+      const sp = document.createElement('span');
+      if (isOp(t)) {
+        sp.className = 'op op-' + OP_NAME[t];
+        sp.textContent = OP_SYMBOL[t];
+      } else {
+        const prev = i > 0 ? tokens[i - 1] : null;
+        sp.className = 'num' + (prev && isOp(prev) ? ' num-' + OP_NAME[prev] : '');
+        sp.textContent = formatLive(t);
+      }
+      el.appendChild(sp);
+    }
+    if (withEquals) {
+      el.appendChild(document.createTextNode(' '));
+      const eq = document.createElement('span');
+      eq.className = 'eq';
+      eq.textContent = '=';
+      el.appendChild(eq);
+    }
+  };
+
+  // ---------- Note (label) factory ----------
+  const makeNote = () => {
+    const note = document.createElement('div');
+    note.className = 'tape-note';
+    note.contentEditable = 'true';
+    note.spellcheck = false;
+    note.setAttribute('data-placeholder', '+');
+    note.setAttribute('role', 'textbox');
+    note.setAttribute('aria-label', 'Note');
+
+    note.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+        note.blur();
+      }
+    });
+    note.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData)
+        .getData('text').replace(/\s+/g, ' ').trim();
+      document.execCommand('insertText', false, text);
+    });
+    note.addEventListener('blur', () => {
+      note.textContent = note.textContent.trim();
+    });
+    return note;
+  };
+
+  // ---------- Row factory: delete button ----------
+  const makeDeleteButton = (row) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tape-delete';
+    btn.setAttribute('aria-label', 'Delete row');
+    btn.textContent = '×';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (row.classList.contains('pending')) return;
+      rowAwaitingDelete = row;
+      if (typeof $confirmDialog.showModal === 'function') {
+        $confirmDialog.showModal();
+      } else if (confirm('Delete this row?')) {
+        executeRowDelete();
+      }
+    });
+    return btn;
+  };
+
+  const executeRowDelete = () => {
+    if (!rowAwaitingDelete) return;
+    const row = rowAwaitingDelete;
+    rowAwaitingDelete = null;
+    row.classList.add('removing');
+    setTimeout(() => {
+      row.remove();
+      recomputeRunningTotals();
+    }, 220);
+  };
+
+  // Walk all finalized rows in DOM order and refresh their running totals.
+  // The running total is exposed via `data-running` so CSS renders it on the
+  // dashed divider as a ::after pseudo-element. Error rows skip contribution
+  // but still display the carried-over running total.
+  const recomputeRunningTotals = () => {
+    let sum = 0;
+    $tape.querySelectorAll('.tape-row:not(.pending)').forEach(row => {
+      const r = parseFloat(row.dataset.result);
+      if (!isNaN(r)) sum += r;
+      row.dataset.running = formatNumber(sum);
+      if (sum < 0) row.dataset.runningNeg = '1';
+      else delete row.dataset.runningNeg;
+    });
+  };
+
+  // ---------- Pending row management ----------
+  const createPendingRow = () => {
+    const empty = document.getElementById('tapeEmpty');
+    if (empty) empty.remove();
+
     const row = document.createElement('div');
-    row.className = 'tape-row';
+    row.className = 'tape-row pending';
+
+    // DOM order: [delete, note, expression, result]
+    // With row-reverse, visual order: [result, expression, note, delete]
+    // Delete sits on the rightmost edge (RTL start side), hidden until row is finalized.
+    const del = makeDeleteButton(row);
+    const note = makeNote();
 
     const exp = document.createElement('span');
     exp.className = 'tape-expression';
-    exp.textContent = expression;
+    exp.textContent = '';
 
     const res = document.createElement('span');
     res.className = 'tape-result';
-    res.textContent = formatNumber(result);
 
+    const num = document.createElement('span');
+    num.className = 'tape-result-num';
+    num.textContent = '';
+
+    res.appendChild(num);
+
+    row.appendChild(del);
+    row.appendChild(note);
     row.appendChild(exp);
     row.appendChild(res);
     $tape.appendChild(row);
 
-    // Auto-scroll to latest entry
-    requestAnimationFrame(() => {
-      $tape.scrollTop = $tape.scrollHeight;
+    pendingRow = row;
+
+    requestAnimationFrame(() => { $tape.scrollTop = $tape.scrollHeight; });
+  };
+
+  const finalizePending = (tokens, result) => {
+    if (!pendingRow) return;
+    pendingRow.classList.remove('pending');
+    pendingRow.dataset.tokens = JSON.stringify(tokens);
+    pendingRow.dataset.result = String(result);
+    renderExpressionInto(pendingRow.querySelector('.tape-expression'), tokens, true);
+    attachInlineEdits(pendingRow);
+    const num = pendingRow.querySelector('.tape-result-num');
+    num.textContent = formatNumber(result);
+    num.classList.remove('error');
+    num.classList.toggle('negative', result < 0);
+    pendingRow = null;
+    recomputeRunningTotals();
+  };
+
+  const finalizePendingError = (tokens) => {
+    if (!pendingRow) return;
+    pendingRow.classList.remove('pending');
+    pendingRow.dataset.tokens = JSON.stringify(tokens);
+    // No dataset.result — running total carries over unchanged.
+    renderExpressionInto(pendingRow.querySelector('.tape-expression'), tokens, true);
+    attachInlineEdits(pendingRow);
+    const num = pendingRow.querySelector('.tape-result-num');
+    num.textContent = 'Error';
+    num.classList.add('error');
+    num.classList.remove('negative');
+    pendingRow = null;
+    recomputeRunningTotals();
+  };
+
+  // Re-evaluate a finalized row from its dataset.tokens and refresh result UI.
+  const refreshRow = (row) => {
+    let tokens;
+    try { tokens = JSON.parse(row.dataset.tokens || '[]'); } catch (e) { tokens = []; }
+    const num = row.querySelector('.tape-result-num');
+    if (tokens.length === 0 || tokens.length === 2) {
+      num.textContent = 'Error';
+      num.classList.add('error');
+      num.classList.remove('negative');
+      delete row.dataset.result;
+      return;
+    }
+    const r = evaluateTokens(tokens);
+    if (!isFinite(r)) {
+      num.textContent = 'Error';
+      num.classList.add('error');
+      num.classList.remove('negative');
+      delete row.dataset.result;
+    } else {
+      num.textContent = formatNumber(r);
+      num.classList.remove('error');
+      num.classList.toggle('negative', r < 0);
+      row.dataset.result = String(r);
+    }
+  };
+
+  // Re-render every finalized row's expression and result using current state
+  // (used when integerMode toggles).
+  const reRenderAllRows = () => {
+    $tape.querySelectorAll('.tape-row:not(.pending)').forEach(row => {
+      let tokens;
+      try { tokens = JSON.parse(row.dataset.tokens || '[]'); } catch (e) { tokens = []; }
+      renderExpressionInto(row.querySelector('.tape-expression'), tokens, true);
+      attachInlineEdits(row);
+      refreshRow(row);
+    });
+    recomputeRunningTotals();
+    render();
+  };
+
+  // Make every number span in a finalized row click-to-edit.
+  const attachInlineEdits = (row) => {
+    let tokens;
+    try { tokens = JSON.parse(row.dataset.tokens || '[]'); } catch (e) { return; }
+    const numSpans = row.querySelectorAll('.tape-expression .num');
+    let numIdx = 0;
+    for (let i = 0; i < tokens.length; i++) {
+      if (isOp(tokens[i])) continue;
+      const span = numSpans[numIdx++];
+      if (!span) continue;
+      span.contentEditable = 'true';
+      span.spellcheck = false;
+      span.dataset.tokenIndex = String(i);
+      const original = tokens[i];
+
+      span.addEventListener('focus', () => {
+        const r = document.createRange();
+        r.selectNodeContents(span);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+      });
+      span.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
+        else if (e.key === 'Escape') {
+          e.preventDefault();
+          span.textContent = formatLive(original);
+          span.blur();
+        } else if (e.key === '.' && state.integerMode) {
+          e.preventDefault();
+        }
+      });
+      span.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData)
+          .getData('text').replace(/[^\d.\-]/g, '');
+        document.execCommand('insertText', false, text);
+      });
+      span.addEventListener('blur', () => {
+        commitRowEdit(row);
+      });
+    }
+  };
+
+  // Parse the edited numbers from a row's DOM back into tokens, then refresh.
+  const commitRowEdit = (row) => {
+    let tokens;
+    try { tokens = JSON.parse(row.dataset.tokens || '[]'); } catch (e) { return; }
+    let changed = false;
+    row.querySelectorAll('.tape-expression .num').forEach(span => {
+      const idx = parseInt(span.dataset.tokenIndex, 10);
+      if (isNaN(idx)) return;
+      const raw = span.textContent.replace(/[,\s]/g, '');
+      const num = parseFloat(raw);
+      if (raw === '' || isNaN(num)) {
+        // Invalid — revert this span only
+        span.textContent = formatLive(tokens[idx]);
+        return;
+      }
+      const newToken = String(
+        state.integerMode
+          ? Math.round(num)
+          : Math.round((num + Number.EPSILON) * 100) / 100
+      );
+      if (tokens[idx] !== newToken) { tokens[idx] = newToken; changed = true; }
+      span.textContent = formatLive(newToken);
+    });
+    if (!changed) return;
+    row.dataset.tokens = JSON.stringify(tokens);
+    renderExpressionInto(row.querySelector('.tape-expression'), tokens, true);
+    attachInlineEdits(row);
+    refreshRow(row);
+    recomputeRunningTotals();
+  };
+
+  // ---------- Render ----------
+  const render = () => {
+    if (!pendingRow) createPendingRow();
+    const exp = pendingRow.querySelector('.tape-expression');
+    const num = pendingRow.querySelector('.tape-result-num');
+
+    // The pending row's result column stays empty during typing.
+    num.textContent = '';
+    num.classList.remove('error', 'negative');
+
+    const live = state.typing !== null
+      ? [...state.tokens, state.typing]
+      : state.tokens;
+    renderExpressionInto(exp, live, false);
+
+    // Highlight an active "trailing operator" if the user just pressed one
+    const last = state.tokens[state.tokens.length - 1];
+    const activeOp = (state.typing === null && isOp(last)) ? last : null;
+    document.querySelectorAll('.key.op').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.op === activeOp);
     });
   };
 
   // ---------- Actions ----------
+  const startFreshIfAfterResult = () => {
+    // After "=" the next digit starts a brand-new calc; the next operator
+    // chains from the previous result.
+    if (state.lastResult !== null && state.tokens.length === 0 && state.typing === null) {
+      state.lastResult = null;
+    }
+  };
+
   const inputDigit = (d) => {
-    if (state.error) resetAll(false);
-    if (state.waitingForOperand) {
-      state.current = d;
-      state.waitingForOperand = false;
+    if (state.error) { state.error = false; state.typing = null; }
+    // After '=' the next digit must be preceded by an operator; block until then.
+    if (state.lastResult !== null && state.tokens.length === 0 && state.typing === null) return;
+    startFreshIfAfterResult();
+
+    // Cap decimals at 2 digits past the point.
+    if (!state.integerMode && state.typing && state.typing.includes('.')) {
+      const dec = state.typing.split('.')[1] || '';
+      if (dec.length >= 2) return;
+    }
+
+    if (state.typing === null || state.typing === '0') {
+      state.typing = d;
+    } else if (state.typing === '-0') {
+      state.typing = '-' + d;
     } else {
-      state.current = state.current === '0' ? d : state.current + d;
+      state.typing = state.typing + d;
     }
-    // Cap the input length for sanity
-    if (state.current.replace('.', '').length > 15) {
-      state.current = state.current.slice(0, state.current.length - 1);
+    const digits = state.typing.replace(/[-.]/g, '');
+    if (digits.length > 15) {
+      state.typing = state.typing.slice(0, -1);
     }
-    renderDisplay();
+    render();
   };
 
   const inputDecimal = () => {
-    if (state.error) resetAll(false);
-    if (state.waitingForOperand) {
-      state.current = '0.';
-      state.waitingForOperand = false;
-    } else if (!state.current.includes('.')) {
-      state.current += '.';
+    if (state.integerMode) return;
+    if (state.error) { state.error = false; state.typing = null; }
+    // After '=' an operator must come before a new number.
+    if (state.lastResult !== null && state.tokens.length === 0 && state.typing === null) return;
+    startFreshIfAfterResult();
+    if (state.typing === null) {
+      state.typing = '0.';
+    } else if (state.typing === '-') {
+      state.typing = '-0.';
+    } else if (!state.typing.includes('.')) {
+      state.typing += '.';
     }
-    renderDisplay();
+    render();
   };
 
-  const backspace = () => {
-    if (state.error) { resetAll(false); renderDisplay(); return; }
-    if (state.waitingForOperand) return;
-    if (state.current.length <= 1 || (state.current.length === 2 && state.current.startsWith('-'))) {
-      state.current = '0';
-    } else {
-      state.current = state.current.slice(0, -1);
-    }
-    renderDisplay();
-  };
-
-  const clearEntry = () => {
-    state.current = '0';
-    state.error = false;
-    state.waitingForOperand = false;
-    renderDisplay();
-  };
-
-  const resetAll = (clearTape = true) => {
-    state.current = '0';
-    state.stored = null;
-    state.op = null;
-    state.waitingForOperand = false;
-    state.error = false;
-    if (clearTape) {
-      $tape.innerHTML = '';
-      const empty = document.createElement('div');
-      empty.className = 'tape-empty';
-      empty.id = 'tapeEmpty';
-      empty.textContent = 'No calculations yet. Start typing.';
-      $tape.appendChild(empty);
-    }
-    renderDisplay();
-  };
-
-  const handleOperator = (nextOp) => {
+  const handleOperator = (op) => {
     if (state.error) return;
-    const inputValue = parseFloat(state.current);
 
-    // Pressing an operator right after another just swaps the pending op
-    if (state.waitingForOperand && state.stored !== null) {
-      state.op = nextOp;
-      renderDisplay();
-      return;
+    // Chain from the last result: feed it into `typing` so the regular branch
+    // below handles pushing it to tokens together with the new operator.
+    if (state.lastResult !== null && state.tokens.length === 0 && state.typing === null) {
+      state.typing = String(state.lastResult);
+      state.lastResult = null;
     }
 
-    if (state.stored === null) {
-      state.stored = inputValue;
-    } else if (state.op) {
-      const result = calculate(state.stored, inputValue, state.op);
-      if (!isFinite(result)) {
-        state.error = true;
-        renderDisplay();
-        return;
-      }
-      addTapeEntry(
-        `${formatNumber(state.stored)} ${OP_SYMBOL[state.op]} ${formatNumber(inputValue)}`,
-        result
-      );
-      state.current = String(result);
-      state.stored = result;
+    if (state.typing !== null && state.typing !== '-') {
+      state.tokens.push(state.typing);
+      state.tokens.push(op);
+      state.typing = null;
+    } else if (state.tokens.length > 0 && isOp(state.tokens[state.tokens.length - 1])) {
+      // Swap the trailing operator
+      state.tokens[state.tokens.length - 1] = op;
+    } else if (state.tokens.length === 0 && state.typing === null && op === '-') {
+      // Allow a leading minus to start a negative number
+      state.typing = '-';
     }
-
-    state.waitingForOperand = true;
-    state.op = nextOp;
-    renderDisplay();
+    render();
   };
 
   const handleEquals = () => {
     if (state.error) return;
-    if (state.stored === null || state.op === null) return;
 
-    const inputValue = parseFloat(state.current);
-    const result = calculate(state.stored, inputValue, state.op);
+    const finalTokens = [...state.tokens];
+    if (state.typing !== null && state.typing !== '-') {
+      finalTokens.push(state.typing);
+    } else if (finalTokens.length > 0 && isOp(finalTokens[finalTokens.length - 1])) {
+      finalTokens.pop();
+    }
+
+    // A single bare number "150 =" is only allowed as the very first row
+    // of the tape. Once any row exists, an operator is required.
+    if (finalTokens.length === 0 || finalTokens.length === 2) return;
+    if (finalTokens.length === 1) {
+      const hasFinalized = $tape.querySelector('.tape-row:not(.pending)') !== null;
+      if (hasFinalized) return;
+    }
+
+    const result = evaluateTokens(finalTokens);
 
     if (!isFinite(result)) {
-      state.error = true;
-      renderDisplay();
+      // Finalize the offending row as an error entry, then spawn a fresh pending row.
+      finalizePendingError(finalTokens);
+      state.tokens = [];
+      state.typing = null;
+      state.lastResult = null;
+      state.error = false;
+      createPendingRow();
+      render();
       return;
     }
 
-    addTapeEntry(
-      `${formatNumber(state.stored)} ${OP_SYMBOL[state.op]} ${formatNumber(inputValue)} =`,
-      result
-    );
+    finalizePending(finalTokens, result);
 
-    state.current = String(result);
-    state.stored = null;
-    state.op = null;
-    state.waitingForOperand = true;
-    renderDisplay();
+    state.tokens = [];
+    state.typing = null;
+    state.lastResult = result;
+    state.error = false;
+
+    createPendingRow();
+    render();
+  };
+
+  const backspace = () => {
+    if (state.error) { state.error = false; state.typing = null; render(); return; }
+
+    if (state.typing !== null && state.typing.length > 1) {
+      state.typing = state.typing.slice(0, -1);
+      if (state.typing === '-') state.typing = null;
+    } else if (state.typing !== null) {
+      state.typing = null;
+    } else if (state.tokens.length > 0) {
+      const last = state.tokens[state.tokens.length - 1];
+      if (isOp(last)) {
+        state.tokens.pop();
+        // Recover the preceding number into typing so it can be continued.
+        if (state.tokens.length > 0) {
+          state.typing = state.tokens.pop();
+        }
+      }
+    }
+    render();
+  };
+
+  const clearEntry = () => {
+    state.error = false;
+    state.typing = null;
+    render();
+  };
+
+  const resetAll = () => {
+    state.tokens = [];
+    state.typing = null;
+    state.error = false;
+    state.lastResult = null;
+    $tape.innerHTML = '';
+    pendingRow = null;
+    createPendingRow();
+    render();
   };
 
   // ---------- Event wiring: clicks ----------
   document.querySelectorAll('.key').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (btn.classList.contains('disabled')) return;
       const { digit, op, action } = btn.dataset;
       if (digit !== undefined) inputDigit(digit);
       else if (op !== undefined) handleOperator(op);
@@ -552,14 +1161,48 @@
       else if (action === 'equals') handleEquals();
       else if (action === 'backspace') backspace();
       else if (action === 'clear') clearEntry();
-      else if (action === 'all-clear') resetAll(true);
+      else if (action === 'all-clear') resetAll();
     });
+  });
+
+  // ---------- Decimal mode toggle ----------
+  const setIntegerMode = (on) => {
+    state.integerMode = !!on;
+    $decimalToggle.dataset.mode = on ? 'integer' : 'decimal';
+    if ($decimalKey) $decimalKey.classList.toggle('disabled', !!on);
+    // If we're currently mid-typing a decimal, strip it.
+    if (on && state.typing && state.typing.includes('.')) {
+      state.typing = state.typing.split('.')[0] || null;
+    }
+    reRenderAllRows();
+  };
+  $decimalToggle.addEventListener('click', () => {
+    setIntegerMode(!state.integerMode);
+  });
+
+  // ---------- Delete confirmation dialog ----------
+  $confirmCancel.addEventListener('click', () => {
+    rowAwaitingDelete = null;
+    $confirmDialog.close('cancel');
+  });
+  $confirmDialog.addEventListener('close', () => {
+    if ($confirmDialog.returnValue === 'confirm') {
+      executeRowDelete();
+    } else {
+      rowAwaitingDelete = null;
+    }
   });
 
   // ---------- Event wiring: keyboard ----------
   window.addEventListener('keydown', (e) => {
-    const k = e.key;
+    // Don't hijack keys while editing a note
+    const target = e.target;
+    if (target && (target.isContentEditable ||
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+      return;
+    }
 
+    const k = e.key;
     if (/^[0-9]$/.test(k)) { inputDigit(k); e.preventDefault(); return; }
     if (k === '.' || k === ',') { inputDecimal(); e.preventDefault(); return; }
     if (k === '+' || k === '-' || k === '*' || k === '/') {
@@ -568,17 +1211,17 @@
     if (k === 'Enter' || k === '=') { handleEquals(); e.preventDefault(); return; }
     if (k === 'Backspace') { backspace(); e.preventDefault(); return; }
     if (k === 'Escape') {
-      // Escape: C if there's something to clear, otherwise AC
-      if (state.current !== '0' || state.error) clearEntry();
-      else resetAll(true);
+      if (state.typing !== null || state.tokens.length > 0 || state.error) clearEntry();
+      else resetAll();
       e.preventDefault();
       return;
     }
-    if (k === 'Delete') { resetAll(true); e.preventDefault(); return; }
+    if (k === 'Delete') { resetAll(); e.preventDefault(); return; }
   });
 
-  // Initial paint
-  renderDisplay();
+  // Initial paint — create the first live pending row.
+  createPendingRow();
+  render();
 })();
 </script>
 </body>
