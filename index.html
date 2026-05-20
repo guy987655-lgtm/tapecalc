@@ -287,6 +287,35 @@
     opacity: 1;
   }
 
+  /* Editable row value (operand number) */
+  .tape-num { display: inline; }
+  .tape-row:not(.pending) .tape-num {
+    cursor: pointer;
+    border-bottom: 1px dashed rgba(255,255,255,0.15);
+    transition: border-color 0.15s;
+  }
+  .tape-row:not(.pending) .tape-operand:hover .tape-num {
+    border-bottom-color: rgba(255,255,255,0.5);
+  }
+  .tape-num-input {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-bottom: 2px solid currentColor;
+    border-radius: 4px 4px 0 0;
+    outline: none;
+    padding: 0 4px;
+    min-width: 2ch;
+    width: 6ch;
+    -moz-appearance: textfield;
+  }
+  .tape-num-input::-webkit-inner-spin-button,
+  .tape-num-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
   @keyframes slideIn {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -661,7 +690,10 @@
       s.textContent = OP_SYMBOL[op];
       el.appendChild(s);
     }
-    el.appendChild(document.createTextNode(numText));
+    const numSpan = document.createElement('span');
+    numSpan.className = 'tape-num';
+    numSpan.textContent = numText;
+    el.appendChild(numSpan);
   };
 
   // ---------- Note (label) factory ----------
@@ -735,6 +767,43 @@
         else delete row.dataset.runningNeg;
       }
     });
+  };
+
+  // ---------- Cascade recompute after operand edit ----------
+  // After changing a row's operand, propagate new results to all subsequent
+  // rows (since each row's first token is the previous row's result).
+  const recascadeFrom = (startRow) => {
+    const allRows = [...$tape.querySelectorAll('.tape-row:not(.pending)')];
+    const startIdx = allRows.indexOf(startRow);
+    if (startIdx === -1) return;
+
+    for (let i = startIdx; i < allRows.length; i++) {
+      const row = allRows[i];
+      let tokens;
+      try { tokens = JSON.parse(row.dataset.tokens || '[]'); } catch(e) { tokens = []; }
+
+      // Propagate previous row's result into this row's first token
+      if (i > 0 && tokens.length >= 3) {
+        const prev = parseFloat(allRows[i - 1].dataset.result);
+        if (isFinite(prev)) { tokens[0] = String(prev); row.dataset.tokens = JSON.stringify(tokens); }
+      }
+
+      const r = Math.round(evaluateTokens(tokens));
+      if (isFinite(r)) row.dataset.result = String(r);
+
+      // Re-render operand display
+      const operand = row.querySelector('.tape-operand');
+      if (operand) {
+        if (tokens.length >= 3) {
+          setOperand(operand, tokens[1], formatLive(tokens[2]));
+        } else {
+          setOperand(operand, null, formatLive(tokens[0]), r < 0 ? 'negative' : '');
+        }
+      }
+    }
+
+    recomputeRunningTotals();
+    saveTape();
   };
 
   // ---------- localStorage persistence ----------
@@ -1088,6 +1157,55 @@
       return;
     }
     if (k === 'Delete') { resetAll(); e.preventDefault(); return; }
+  });
+
+  // ---------- Tap-to-edit operand value ----------
+  $tape.addEventListener('click', (e) => {
+    const numSpan = e.target.closest('.tape-num');
+    if (!numSpan) return;
+    const row = numSpan.closest('.tape-row');
+    if (!row || row.classList.contains('pending')) return;
+
+    let tokens;
+    try { tokens = JSON.parse(row.dataset.tokens || '[]'); } catch(ex) { tokens = []; }
+    const tokenIdx = tokens.length >= 3 ? 2 : 0;
+    const rawVal = String(Math.round(Math.abs(parseFloat(tokens[tokenIdx])) || 0));
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.inputMode = 'numeric';
+    input.pattern = '[0-9]*';
+    input.value = rawVal;
+    input.className = 'tape-num-input';
+    // fit width to content (grows as user types)
+    input.style.width = Math.max(rawVal.length, 2) + 'ch';
+    input.addEventListener('input', () => {
+      input.style.width = Math.max(input.value.length || 1, 2) + 'ch';
+    });
+
+    numSpan.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let committed = false;
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      const newVal = Math.round(parseFloat(input.value.replace(/[^0-9]/g, '')) || 0);
+      if (isFinite(newVal) && newVal >= 0) {
+        // Preserve sign for subtraction rows
+        const orig = parseFloat(tokens[tokenIdx]);
+        tokens[tokenIdx] = String(orig < 0 ? -newVal : newVal);
+        row.dataset.tokens = JSON.stringify(tokens);
+      }
+      recascadeFrom(row);
+    };
+
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter')  { ev.preventDefault(); input.blur(); }
+      if (ev.key === 'Escape') { committed = true; recascadeFrom(row); ev.preventDefault(); }
+    });
   });
 
   // ---------- Calc handle toggle ----------
