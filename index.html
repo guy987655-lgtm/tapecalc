@@ -459,14 +459,13 @@
     body {
       padding: 0;
       align-items: stretch;
-      padding-bottom: env(safe-area-inset-bottom);
     }
     .app {
       grid-template-columns: 1fr;
       /* minmax(0,1fr) lets the tape shrink when rows grow — fixes "pushes bottom" bug */
       grid-template-rows: minmax(0, 1fr) auto;
       height: 100vh;
-      height: 100dvh;
+      height: calc(100dvh - env(safe-area-inset-bottom));
       max-width: none;
       border-radius: 0;
     }
@@ -491,16 +490,16 @@
     body {
       padding: 0;
       align-items: stretch;
-      padding-right: env(safe-area-inset-right);
-      padding-bottom: env(safe-area-inset-bottom);
     }
     .app {
       grid-template-columns: 3fr 1fr;   /* tape 75 %, calc 25 % */
       grid-template-rows: 1fr;
       height: 100vh;
-      height: 100dvh;
+      height: calc(100dvh - env(safe-area-inset-bottom));
       max-width: none;
       border-radius: 0;
+      padding-right: env(safe-area-inset-right);
+      box-sizing: border-box;
     }
     .tape { min-height: 0; }
     .tape-header { padding: 10px 16px 8px; }
