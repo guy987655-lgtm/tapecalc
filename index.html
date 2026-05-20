@@ -495,6 +495,7 @@
       padding: 0;
       align-items: stretch;
       padding-right: env(safe-area-inset-right);
+      padding-bottom: env(safe-area-inset-bottom);
     }
     .app {
       grid-template-columns: 3fr 1fr;   /* tape 75 %, calc 25 % */
@@ -507,10 +508,20 @@
     .tape { min-height: 0; }
     .tape-header { padding: 10px 16px 8px; }
     .tape-body   { min-height: 0; padding: 8px 16px 10px; }
-    .calc { padding: 8px 10px 10px; }
-    .keypad { gap: 5px; }
-    /* 38px = 8px top-pad + 10px bottom-pad + 4 gaps × 5px */
-    button.key { min-height: 0; height: calc((100dvh - 38px) / 5); font-size: 14px; }
+    /* calc section fills its column height exactly */
+    .calc {
+      padding: 6px 8px;
+      overflow: hidden;
+      height: 100%;
+      box-sizing: border-box;
+    }
+    /* shrink the display readout so the keypad gets the rest */
+    .display { min-height: 0; flex-shrink: 0; margin-bottom: 4px; }
+    .display-current { font-size: 26px; line-height: 1.2; }
+    .display-pending { font-size: 11px; min-height: 12px; margin-bottom: 2px; }
+    /* keypad fills remaining height; align-content:stretch distributes rows evenly */
+    .keypad { flex: 1; min-height: 0; gap: 4px; align-content: stretch; }
+    button.key { min-height: 0; height: auto; font-size: 13px; }
     button.key.util { font-size: 11px; }
   }
 
