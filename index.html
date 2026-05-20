@@ -103,34 +103,26 @@
     gap: 14px;
   }
 
-  .decimal-toggle {
-    background: var(--surface-2);
-    border: 1px solid rgba(255,255,255,0.04);
+  /* ---- Calc panel handle (bottom-sheet style toggle) ---- */
+  .calc-handle {
+    display: none; /* only on mobile */
+    flex-shrink: 0;
+    justify-content: center;
+    align-items: center;
+    height: 22px;
     cursor: pointer;
-    border-radius: 999px;
-    padding: 2px;
-    display: inline-flex;
-    gap: 0;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px;
-    letter-spacing: 0.04em;
-    color: var(--text-muted);
+    user-select: none;
     -webkit-tap-highlight-color: transparent;
-    transition: background 0.15s ease;
   }
-  .decimal-toggle:hover { background: var(--surface-3); }
-  .decimal-toggle .dt-opt {
-    padding: 4px 10px;
-    border-radius: 999px;
-    transition: background 0.15s ease, color 0.15s ease;
-    line-height: 1;
+  .calc-handle span {
+    display: block;
+    width: 32px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.18);
+    transition: background 0.15s;
   }
-  .decimal-toggle[data-mode="decimal"] .dt-on,
-  .decimal-toggle[data-mode="integer"] .dt-off {
-    background: var(--accent);
-    color: #0a1a10;
-    font-weight: 600;
-  }
+  .calc-handle:active span { background: rgba(255,255,255,0.35); }
 
   .tape-body {
     flex: 1;
@@ -306,32 +298,7 @@
     flex-direction: column;
     background: var(--surface-2);
     padding: 24px;
-    position: relative;
   }
-
-  /* ---- Minimize / expand toggle ---- */
-  .calc-toggle {
-    display: none; /* desktop: hidden */
-    position: absolute;
-    width: 26px;
-    height: 26px;
-    border: none;
-    border-radius: 7px;
-    background: rgba(255,255,255,0.07);
-    color: var(--text-muted);
-    font-size: 13px;
-    line-height: 1;
-    cursor: pointer;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-    padding: 0;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    transition: background 0.15s;
-  }
-  .calc-toggle:hover  { background: rgba(255,255,255,0.13); }
-  .calc-toggle:active { background: rgba(255,255,255,0.18); }
 
   .display {
     background: transparent;
@@ -423,7 +390,7 @@
   }
   button.key.util.ac { color: var(--danger); }
 
-  button.key.eq { grid-column: span 1; }
+  button.key.eq { grid-column: span 2; }
 
   button.key.disabled {
     color: var(--text-dim);
@@ -511,13 +478,11 @@
     .keypad { gap: 8px; }
     button.key { min-height: 44px; font-size: 16px; }
     button.key.util { font-size: 13px; }
-    /* toggle: top-right, portrait collapses calc downward */
-    .calc-toggle { display: flex; top: 10px; right: 12px; }
-    .calc-toggle::before { content: '⌄'; }
-    .app.calc-collapsed { grid-template-rows: 1fr 42px; }
+    /* handle at top of calc, collapses panel down */
+    .calc-handle { display: flex; margin: -10px -16px 4px; }
+    .app.calc-collapsed { grid-template-rows: 1fr 22px; }
     .app.calc-collapsed .keypad { display: none; }
-    .app.calc-collapsed .calc { padding: 0 16px; justify-content: center; align-items: flex-end; }
-    .app.calc-collapsed .calc-toggle::before { content: '⌃'; }
+    .app.calc-collapsed .calc { padding: 0 16px; }
   }
 
   /* -------------------- RESPONSIVE — LANDSCAPE MOBILE -------------------- */
@@ -555,14 +520,11 @@
     .keypad { flex: 1; min-height: 0; gap: 4px; align-content: stretch; }
     button.key { min-height: 0; height: auto; font-size: 13px; }
     button.key.util { font-size: 11px; }
-    /* toggle: top-left (facing tape), landscape collapses calc rightward */
-    .calc-toggle { display: flex; top: 6px; left: 6px; }
-    .calc-toggle::before { content: '›'; }
-    .app.calc-collapsed { grid-template-columns: 1fr 38px; }
+    /* handle at top of calc column, collapses calc rightward */
+    .calc-handle { display: flex; margin: -6px -8px 2px; }
+    .app.calc-collapsed { grid-template-columns: 1fr 22px; }
     .app.calc-collapsed .keypad { display: none; }
-    .app.calc-collapsed .calc { padding: 0; justify-content: flex-start; align-items: center; }
-    .app.calc-collapsed .calc-toggle { top: 6px; left: 6px; }
-    .app.calc-collapsed .calc-toggle::before { content: '‹'; }
+    .app.calc-collapsed .calc { padding: 0; }
   }
 
   @media (max-height: 560px) and (min-width: 721px) {
@@ -576,11 +538,6 @@
       <header class="tape-header">
         <span class="tape-title">Tape</span>
         <div class="header-controls">
-          <button type="button" class="decimal-toggle" id="decimalToggle"
-                  data-mode="decimal" aria-label="Toggle decimals">
-            <span class="dt-opt dt-on">0.00</span>
-            <span class="dt-opt dt-off">0</span>
-          </button>
           <span class="tape-dot" aria-hidden="true"></span>
         </div>
       </header>
@@ -600,7 +557,7 @@
     </dialog>
 
     <section class="calc" aria-label="Calculator">
-      <button type="button" class="calc-toggle" id="calcToggle" aria-label="Toggle calculator"></button>
+      <div class="calc-handle" id="calcHandle"><span></span></div>
       <div class="keypad">
         <button class="key util ac" data-action="all-clear">AC</button>
         <button class="key util"    data-action="clear">C</button>
@@ -624,7 +581,6 @@
 
         <button class="key" data-digit="0">0</button>
         <button class="key" data-action="double-zero">00</button>
-        <button class="key" data-action="decimal">.</button>
         <button class="key eq" data-action="equals">=</button>
       </div>
     </section>
@@ -638,19 +594,16 @@
   // mirrors this state live. On '=' we evaluate, finalize that row, and
   // spawn a fresh pending row.
   const state = {
-    tokens: [],         // committed sequence: ['150','+','20','+', ...]
-    typing: null,       // current number being typed, or null when waiting
+    tokens: [],      // committed sequence: ['150','+','20','+', ...]
+    typing: null,    // current number being typed, or null when waiting
     error: false,
-    lastResult: null,   // last evaluated result, enables chaining after '='
-    integerMode: false, // when true: no decimals allowed, results rounded
+    lastResult: null // last evaluated result, enables chaining after '='
   };
 
   // ---------- DOM ----------
   const $tape = document.getElementById('tape');
-  const $decimalToggle = document.getElementById('decimalToggle');
   const $confirmDialog = document.getElementById('confirmDialog');
   const $confirmCancel = document.getElementById('confirmCancel');
-  const $decimalKey = document.querySelector('.key[data-action="decimal"]');
   let pendingRow = null;
   let rowAwaitingDelete = null;
 
@@ -661,42 +614,21 @@
 
   // Format an in-progress typed string with thousands grouping while preserving
   // a trailing dot or fractional part the user is still typing.
+  // Format a number being typed — integers only, with thousands grouping.
   const formatLive = (s) => {
     if (s == null || s === '') return '';
     if (s === '-') return '-';
     const neg = s.startsWith('-');
     const body = neg ? s.slice(1) : s;
-    let out;
-    if (state.integerMode) {
-      // Display as integer: round and ignore any decimal part
-      const intPart = body.split('.')[0] || '0';
-      out = Number(intPart).toLocaleString('en-US');
-    } else if (body.endsWith('.')) {
-      const [i] = body.split('.');
-      out = Number(i || 0).toLocaleString('en-US') + '.';
-    } else if (body.includes('.')) {
-      const [i, d] = body.split('.');
-      // Hard cap on display: at most 2 fractional digits.
-      const limited = d.length > 2 ? d.slice(0, 2) : d;
-      out = Number(i || 0).toLocaleString('en-US') + '.' + limited;
-    } else {
-      out = Number(body).toLocaleString('en-US');
-    }
+    const intPart = body.split('.')[0] || '0';
+    const out = Number(intPart).toLocaleString('en-US');
     return neg ? '-' + out : out;
   };
 
-  // Format a finalized number — used for results.
-  // In decimal mode: rounded to 2 fractional digits.
-  // In integer mode: rounded to whole.
+  // Format a finalized number — always rounded to whole integer.
   const formatNumber = (n) => {
     if (!isFinite(n)) return 'Error';
-    if (state.integerMode) {
-      return Math.round(n).toLocaleString('en-US');
-    }
-    const rounded = Math.round((n + Number.EPSILON) * 100) / 100;
-    const [intPart, decPart] = String(rounded).split('.');
-    const grouped = Number(intPart).toLocaleString('en-US');
-    return decPart !== undefined ? `${grouped}.${decPart}` : grouped;
+    return Math.round(n).toLocaleString('en-US');
   };
 
   const calculate = (a, b, op) => {
@@ -818,8 +750,7 @@
       }));
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         rows,
-        lastResult: state.lastResult,
-        integerMode: !!state.integerMode
+        lastResult: state.lastResult
       }));
     } catch(e) {}
   };
@@ -851,7 +782,7 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      const { rows, lastResult, integerMode } = JSON.parse(raw);
+      const { rows, lastResult } = JSON.parse(raw);
       if (Array.isArray(rows) && rows.length > 0) {
         rows.forEach(({ tokens, result, note }) => {
           if (!Array.isArray(tokens) || !isFinite(result)) return;
@@ -859,7 +790,6 @@
         });
         recomputeRunningTotals();
       }
-      if (integerMode) setIntegerMode(true);
       if (lastResult != null && isFinite(lastResult)) state.lastResult = lastResult;
     } catch(e) {}
   };
@@ -938,7 +868,6 @@
   };
 
   // Re-render every finalized row's expression and result using current state
-  // (used when integerMode toggles).
   const reRenderAllRows = () => {
     $tape.querySelectorAll('.tape-row:not(.pending)').forEach(row => refreshRow(row));
     recomputeRunningTotals();
@@ -985,12 +914,6 @@
     if (state.lastResult !== null && state.tokens.length === 0 && state.typing === null) return;
     startFreshIfAfterResult();
 
-    // Cap decimals at 2 digits past the point.
-    if (!state.integerMode && state.typing && state.typing.includes('.')) {
-      const dec = state.typing.split('.')[1] || '';
-      if (dec.length >= 2) return;
-    }
-
     if (state.typing === null || state.typing === '0') {
       state.typing = d;
     } else if (state.typing === '-0') {
@@ -1001,22 +924,6 @@
     const digits = state.typing.replace(/[-.]/g, '');
     if (digits.length > 15) {
       state.typing = state.typing.slice(0, -1);
-    }
-    render();
-  };
-
-  const inputDecimal = () => {
-    if (state.integerMode) return;
-    if (state.error) { state.error = false; state.typing = null; }
-    // After '=' an operator must come before a new number.
-    if (state.lastResult !== null && state.tokens.length === 0 && state.typing === null) return;
-    startFreshIfAfterResult();
-    if (state.typing === null) {
-      state.typing = '0.';
-    } else if (state.typing === '-') {
-      state.typing = '-0.';
-    } else if (!state.typing.includes('.')) {
-      state.typing += '.';
     }
     render();
   };
@@ -1065,7 +972,7 @@
       if (hasFinalized) return;
     }
 
-    const result = evaluateTokens(finalTokens);
+    const result = Math.round(evaluateTokens(finalTokens));
 
     if (!isFinite(result)) {
       // Finalize the offending row as an error entry, then spawn a fresh pending row.
@@ -1139,28 +1046,11 @@
       if (digit !== undefined) inputDigit(digit);
       else if (op !== undefined) handleOperator(op);
       else if (action === 'double-zero') { inputDigit('0'); inputDigit('0'); }
-      else if (action === 'decimal') inputDecimal();
       else if (action === 'equals') handleEquals();
       else if (action === 'backspace') backspace();
       else if (action === 'clear') clearEntry();
       else if (action === 'all-clear') resetAll();
     });
-  });
-
-  // ---------- Decimal mode toggle ----------
-  const setIntegerMode = (on) => {
-    state.integerMode = !!on;
-    $decimalToggle.dataset.mode = on ? 'integer' : 'decimal';
-    if ($decimalKey) $decimalKey.classList.toggle('disabled', !!on);
-    // If we're currently mid-typing a decimal, strip it.
-    if (on && state.typing && state.typing.includes('.')) {
-      state.typing = state.typing.split('.')[0] || null;
-    }
-    reRenderAllRows();
-    saveTape();
-  };
-  $decimalToggle.addEventListener('click', () => {
-    setIntegerMode(!state.integerMode);
   });
 
   // ---------- Delete confirmation dialog ----------
@@ -1187,7 +1077,6 @@
 
     const k = e.key;
     if (/^[0-9]$/.test(k)) { inputDigit(k); e.preventDefault(); return; }
-    if (k === '.' || k === ',') { inputDecimal(); e.preventDefault(); return; }
     if (k === '+' || k === '-' || k === '*' || k === '/') {
       handleOperator(k); e.preventDefault(); return;
     }
@@ -1202,8 +1091,8 @@
     if (k === 'Delete') { resetAll(); e.preventDefault(); return; }
   });
 
-  // ---------- Calc minimize toggle ----------
-  document.getElementById('calcToggle')?.addEventListener('click', () => {
+  // ---------- Calc handle toggle ----------
+  document.getElementById('calcHandle')?.addEventListener('click', () => {
     document.querySelector('.app').classList.toggle('calc-collapsed');
   });
 
