@@ -510,29 +510,60 @@
     outline: none;
   }
 
-  /* -------------------- RESPONSIVE -------------------- */
-  @media (max-width: 720px) {
+  /* -------------------- RESPONSIVE — PORTRAIT MOBILE -------------------- */
+  @media (max-width: 720px) and (orientation: portrait) {
     body {
       padding: 0;
       align-items: stretch;
-      /* Push content above the iOS home indicator */
       padding-bottom: env(safe-area-inset-bottom);
     }
     .app {
       grid-template-columns: 1fr;
-      grid-template-rows: 1fr auto;
-      /* dvh accounts for the browser address bar; vh is the fallback */
+      /* minmax(0,1fr) lets the tape shrink when rows grow — fixes "pushes bottom" bug */
+      grid-template-rows: minmax(0, 1fr) auto;
       height: 100vh;
       height: 100dvh;
       max-width: none;
       border-radius: 0;
     }
-    .tape-header { padding: 18px 20px 12px; }
-    .tape-body { padding: 12px 20px 18px; }
-    .calc { padding: 14px 18px 18px; }
-    .display { min-height: 72px; margin-bottom: 12px; }
-    .display-current { font-size: 40px; }
-    button.key { min-height: 48px; font-size: 19px; }
+    /* must be 0 so the grid can actually shrink the tape */
+    .tape { min-height: 0; }
+    .tape-header { padding: 14px 20px 10px; }
+    .tape-body   { min-height: 0; padding: 10px 20px 14px; }
+    .tape-expression { font-size: 12px; }
+    .tape-result-num { font-size: 16px; }
+    .calc { padding: 10px 16px 14px; }
+    .keypad { gap: 8px; }
+    button.key { min-height: 44px; font-size: 16px; }
+    button.key.util { font-size: 13px; }
+  }
+
+  /* -------------------- RESPONSIVE — LANDSCAPE MOBILE -------------------- */
+  /* Calculator = 25 % right column, tape = 75 % left column */
+  @media (max-height: 500px) and (orientation: landscape) {
+    body {
+      padding: 0;
+      align-items: stretch;
+      padding-right: env(safe-area-inset-right);
+    }
+    .app {
+      grid-template-columns: 3fr 1fr;   /* tape 75 %, calc 25 % */
+      grid-template-rows: 1fr;
+      height: 100vh;
+      height: 100dvh;
+      max-width: none;
+      border-radius: 0;
+    }
+    .tape { min-height: 0; }
+    .tape-header { padding: 10px 16px 8px; }
+    .tape-body   { min-height: 0; padding: 8px 16px 10px; }
+    .tape-expression { font-size: 11px; }
+    .tape-result-num { font-size: 14px; }
+    .calc { padding: 8px 10px 10px; }
+    .keypad { gap: 5px; }
+    /* 38px = 8px top-pad + 10px bottom-pad + 4 gaps × 5px */
+    button.key { min-height: 0; height: calc((100dvh - 38px) / 5); font-size: 14px; }
+    button.key.util { font-size: 11px; }
   }
 
   @media (max-height: 560px) and (min-width: 721px) {
